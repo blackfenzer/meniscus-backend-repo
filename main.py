@@ -1,30 +1,32 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.middleware.trustedhost import TrustedHostMiddleware
-from fastapi.security import OAuth2PasswordBearer
-from app.core.config import settings
-from app.api.v1 import auth, users
-from app.db.session import engine
-from app.db.base import Base
+from app.routes import protected , auth
+from app.database.session import Base, engine
+from app.security.csrf_handler import CsrfProtect, csrf_protect_exception_handler
+from fastapi_csrf_protect.exceptions import CsrfProtectError
 
-app = FastAPI(
-    title=settings.PROJECT_NAME, openapi_url=f"{settings.API_V1_STR}/openapi.json"
-)
-
-# Create database tables
+# Create tables (only for development)
 Base.metadata.create_all(bind=engine)
 
-# Security middleware
+app = FastAPI()
+
+# CORS Middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.ALLOWED_ORIGINS,
+    allow_origins=["http://localhost:3000"],  # Allow Next.js frontend
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-app.add_middleware(TrustedHostMiddleware, allowed_hosts=settings.ALLOWED_HOSTS)
+# CSRF Protection
+app.add_exception_handler(CsrfProtectError, csrf_protect_exception_handler)
 
-# Include routers
-app.include_router(auth.router, prefix=settings.API_V1_STR)
-app.include_router(users.router, prefix=settings.API_V1_STR)
+# Include Routes
+# app.include_router(auth.router)
+app.include_router(protected.router)
+app.include_router(auth.router)
+
+@app.get("/")
+def read_root():
+    return {"message": "Welcome to FastAPI with JWT, CSRF, and SQLAlchemy"}
