@@ -15,3 +15,6 @@ def validate_nextauth_jwt(token: str):
     except Exception as e:
         print(f"JWT validation error: {e}")
         return None
+
+def create_access_token(data: dict):
+    return nextauth_jwt.encode(data)

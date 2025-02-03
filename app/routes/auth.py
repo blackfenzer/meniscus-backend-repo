@@ -16,6 +16,12 @@ class LoginRequest(BaseModel):
     password: str
 
 
+class RegisterRequest(BaseModel):
+    username: str
+    password: str
+    is_admin: bool = False  # Add is_admin field
+
+
 @router.get("/csrf-token")
 def get_csrf_token(csrf_protect: CsrfProtect = Depends()):
     # Generate a new CSRF token
@@ -24,17 +30,6 @@ def get_csrf_token(csrf_protect: CsrfProtect = Depends()):
 
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
-
-
-@router.post("/token")
-def login(request: LoginRequest, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.username == request.username).first()
-    if not user:
-        raise HTTPException(status_code=401, detail="Invalid credentials")
-
-    # 🔹 Add password hashing check here (e.g., bcrypt.checkpw)
-
-    return {"access_token": "dummy_token"}
 
 
 @router.get("/check-login")
@@ -46,13 +41,28 @@ def check_login(token: str = Depends(oauth2_scheme)):
 
 
 @router.post("/register")
-def register(username: str, password: str, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.username == username).first()
+def register(request: RegisterRequest, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.username == request.username).first()
     if user:
         raise HTTPException(status_code=400, detail="Username already exists")
 
-    new_user = User(username=username, password=password)
+    new_user = User(username=request.username, is_admin=request.is_admin)
+    new_user.set_password(request.password)  # Hash the password
     db.add(new_user)
     db.commit()
 
     return {"message": "User created"}
+
+
+@router.post("/token")
+def login(request: LoginRequest, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.username == request.username).first()
+    if not user or not user.check_password(request.password):  # Verify password
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+
+    # Return JWT token with user info
+    return {
+        "access_token": "dummy_token",
+        "username": user.username,
+        "is_admin": user.is_admin,  # Include is_admin in the response
+    }
