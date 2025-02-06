@@ -1,11 +1,13 @@
 from sqlalchemy import MetaData
+from app.models.user import User
 
 # from session import engine , Base
-from session import engine, Base
+from .session import engine, Base
 
-
+# Import models here
+table_objects = [User.__table__]
 # Create tables in the database
-Base.metadata.create_all(engine)
+Base.metadata.create_all(engine, tables=table_objects)
 
 print("Tables created successfully!")
 
