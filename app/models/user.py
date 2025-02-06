@@ -13,7 +13,7 @@ class User(Base):
     username = Column(String, unique=True, nullable=False)
     password = Column(String, nullable=False)  # Store hashed password
     is_active = Column(Boolean, default=True)
-    is_admin = Column(Boolean, default=False)
+    role = Column(String, default="user")
 
     def set_password(self, password: str):
         # Hash the password

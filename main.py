@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routes import protected , auth
+from app.routes import protected , auth , auth2
 from app.database.session import Base, engine
 from app.security.csrf_handler import CsrfProtect, csrf_protect_exception_handler
 from fastapi_csrf_protect.exceptions import CsrfProtectError
@@ -26,6 +26,7 @@ app.add_exception_handler(CsrfProtectError, csrf_protect_exception_handler)
 # app.include_router(auth.router)
 app.include_router(protected.router)
 app.include_router(auth.router)
+app.include_router(auth2.router , prefix="/api/v1" ,tags=["auth2"])
 
 @app.get("/")
 def read_root():
