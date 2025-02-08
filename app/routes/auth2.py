@@ -112,7 +112,7 @@ async def login(
         max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
     )
 
-    return {"message": "Login successful", "csrf_token": csrf_token}
+    return {"message": "Login successful","access_token":access_token, "csrf_token": csrf_token}
 
 
 @router.post("/logout")
@@ -122,13 +122,13 @@ async def logout(response: Response):
     return {"message": "Logged out successfully"}
 
 
-@router.get("/test-auth")
+@router.get("/me")
 async def test_auth(current_user: User = Depends(get_current_user)):
     return {
         "message": f"Hello, {current_user.username}! You are authenticated.",
+        "username": current_user.username,
         "role": current_user.role,
     }
-
 
 @router.post("/submit-data")
 async def submit_data(request: Request, current_user: User = Depends(get_current_user)):
