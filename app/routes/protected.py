@@ -28,3 +28,5 @@ def protected_route(
         raise HTTPException(status_code=401, detail="Invalid or expired token")
 
     return {"message": "Access granted", "user": payload}
+
+

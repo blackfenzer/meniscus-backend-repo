@@ -1,11 +1,14 @@
 from sqlalchemy import MetaData
 from app.models.user import User
+from app.models.sent import Sent
+from app.models.model import Model
+from app.models.csvFile import CSVFile
 
 # from session import engine , Base
 from .session import engine, Base
 
 # Import models here
-table_objects = [User.__table__]
+table_objects = [User.__table__, Sent.__table__, Model.__table__, CSVFile.__table__]
 # Create tables in the database
 Base.metadata.create_all(engine, tables=table_objects)
 
