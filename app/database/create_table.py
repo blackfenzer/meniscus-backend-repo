@@ -4,6 +4,11 @@ from app.models.sent import Sent
 from app.models.model import Model
 from app.models.csvFile import CSVFile
 
+import sys
+import os
+
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
 # from session import engine , Base
 from .session import engine, Base
 
