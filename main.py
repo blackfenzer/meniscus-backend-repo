@@ -27,8 +27,8 @@ app.add_exception_handler(CsrfProtectError, csrf_protect_exception_handler)
 app.include_router(protected.router)
 app.include_router(auth.router)
 app.include_router(auth2.router, prefix="/api/v1", tags=["auth2"])
-app.include_router(validate_handler.router)
-app.include_router(nn_model.router, prefix="/api/v1/model", tags=["torch"])
+app.include_router(validate_handler.router, prefix="/smart", tags=["smart"])
+# app.include_router(nn_model.router, prefix="/api/v1/model", tags=["torch"])
 
 
 @app.get("/")

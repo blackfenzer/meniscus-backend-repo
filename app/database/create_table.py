@@ -5,6 +5,11 @@ from sqlalchemy import MetaData
 #from app.models.sent import Sent
 from app.models.schema import *
 
+import sys
+import os
+
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
 # from session import engine , Base
 from .session import engine, Base
 
