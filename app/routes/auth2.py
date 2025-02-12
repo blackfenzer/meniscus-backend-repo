@@ -7,7 +7,7 @@ from datetime import timedelta, datetime
 import secrets
 from jose import JWTError, jwt
 from app.database.session import get_db
-from app.models.user import User
+from app.models.schema import User
 from sqlalchemy.orm import Session
 
 router = APIRouter()

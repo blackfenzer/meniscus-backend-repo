@@ -10,8 +10,10 @@ from backend.app.database.session import SessionLocal
 
 Base = sqlalchemy.orm.declarative_base()
 
+
 class Base(DeclarativeBase):
     pass
+
 
 class User(Base):
     __tablename__ = "users"
@@ -30,6 +32,7 @@ class User(Base):
     def check_password(self, password: str) -> bool:
         # Verify the password
         return bcrypt.checkpw(password.encode("utf-8"), self.password.encode("utf-8"))
+
 
 class CSVFile(Base):
     __tablename__ = "csvFiles"
@@ -87,15 +90,17 @@ class Model(Base):
     __tablename__ = "models"
     id = Column(Integer, primary_key=True)
     model_architecture = Column(String)
-    train_date = Column(DateTime, default=datetime.utcnow, nullable=False)
+    train_date = Column(DateTime, default=datetime.now(), nullable=False)
     final_loss = Column(Double)
+    model_path = Column(String)
+
 
 class Sent(Base):
     __tablename__ = "sents"
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     csv_file_id = Column(Integer, ForeignKey("csvFiles.id"), nullable=False)
-    sent_date = Column(DateTime, default=datetime.utcnow, nullable=False)
+    sent_date = Column(DateTime, default=datetime.now(), nullable=False)
 
     user = relationship("Users", back_populates="sents")
     csv_file = relationship("CSVFile", back_populates="sents")

@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.security import OAuth2PasswordBearer
 from app.security.jwt_handler import create_access_token, validate_nextauth_jwt
 from app.database.session import get_db
-from app.models.user import User
+from app.models.schema import User
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from app.schemas.schemas import RegisterRequest, LoginRequest, UserSchema, Token
