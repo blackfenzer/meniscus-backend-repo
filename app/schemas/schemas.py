@@ -41,6 +41,30 @@ class PredictRequest(BaseModel):
     MM_extrusion_pre: float = Field(..., alias="MM extrusion pre")
 
 
+class TrainRequest(BaseModel):
+    sex: int
+    age: int
+    side: int
+    BW: float
+    Ht: float
+    BMI: float
+    IKDC_pre: float = Field(..., alias="IKDC pre")
+    IKDC_3_m: float = Field(..., alias="IKDC 3 m")
+    IKDC_6_m: float = Field(..., alias="IKDC 6 m")
+    IKDC_1_Y: float = Field(..., alias="IKDC 1 Y")
+    IKDC_2_Y: float = Field(..., alias="IKDC 2 Y");
+    Lysholm_pre: float = Field(..., alias="Lysholm pre")
+    Lysholm_3_m: float = Field(..., alias="Lysholm 3 m")
+    Lysholm_6_m: float = Field(..., alias="Lysholm 6 m")
+    Lysholm_1_Y: float = Field(..., alias="Lysholm 1 Y")
+    Lysholm_2_Y: float = Field(..., alias="Lysholm 2 Y")
+    Pre_KL_grade: float = Field(..., alias="Pre KL grade")
+    Post_KL_grade_2_Y: float = Field(..., alias="Post KL grade 2 Y")
+    MRI_healing_1_Y: float = Field(..., alias="MRI healing 1 Y")
+    MM_extrusion_pre: float = Field(..., alias="MM extrusion pre")
+    MM_extrusion_post: float = Field(..., alias="MMextrusion post")
+
+
 class TrainConfig(BaseModel):
     learning_rate: float = Field(
         ..., gt=0, description="Learning rate for the optimizer"
