@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field
 from pydantic import ConfigDict
-from typing import Optional
+from typing import List, Optional
 from datetime import datetime
 
 
@@ -52,7 +52,7 @@ class TrainRequest(BaseModel):
     IKDC_3_m: float = Field(..., alias="IKDC 3 m")
     IKDC_6_m: float = Field(..., alias="IKDC 6 m")
     IKDC_1_Y: float = Field(..., alias="IKDC 1 Y")
-    IKDC_2_Y: float = Field(..., alias="IKDC 2 Y");
+    IKDC_2_Y: float = Field(..., alias="IKDC 2 Y")
     Lysholm_pre: float = Field(..., alias="Lysholm pre")
     Lysholm_3_m: float = Field(..., alias="Lysholm 3 m")
     Lysholm_6_m: float = Field(..., alias="Lysholm 6 m")
@@ -82,3 +82,84 @@ class ModelResponse(BaseModel):
     status: str
     accuracy: Optional[float] = None
     message: Optional[str] = None
+
+
+class DataEntry(BaseModel):
+    sex: Optional[int]
+    age: Optional[int]
+    side: Optional[float]
+    BW: Optional[float]
+    Ht: Optional[float]
+    BMI: Optional[float]
+    IKDC_pre: Optional[float]
+    IKDC_3_m: Optional[float]
+    IKDC_6_m: Optional[float]
+    IKDC_1_Y: Optional[float]
+    IKDC_2_Y: Optional[float]
+    Lysholm_pre: Optional[float]
+    Lysholm_3_m: Optional[float]
+    Lysholm_6_m: Optional[float]
+    Lysholm_1_Y: Optional[float]
+    Lysholm_2_Y: Optional[float]
+    Pre_KL_grade: Optional[float]
+    Post_KL_grade_2_Y: Optional[float]
+    MM_extrusion_pre: Optional[float]
+    MM_extrusion_post: Optional[float]
+
+    class Config:
+        from_attributes = True
+
+
+# class CSVFileResponse(BaseModel):
+#     id: int
+#     last_modified_time: datetime
+#     model_architecture: Optional[str]
+#     data: Optional[List[DataEntry]]
+#     message: Optional[str]
+
+#     class Config:
+#         from_attributes = True
+
+class DataEntry(BaseModel):
+    sex: Optional[int]
+    age: Optional[int]
+    side: Optional[float]
+    BW: Optional[float]
+    Ht: Optional[float]
+    BMI: Optional[float]
+    IKDC_pre: Optional[float]
+    IKDC_3_m: Optional[float]
+    IKDC_6_m: Optional[float]
+    IKDC_1_Y: Optional[float]
+    IKDC_2_Y: Optional[float]
+    Lysholm_pre: Optional[float]
+    Lysholm_3_m: Optional[float]
+    Lysholm_6_m: Optional[float]
+    Lysholm_1_Y: Optional[float]
+    Lysholm_2_Y: Optional[float]
+    Pre_KL_grade: Optional[float]
+    Post_KL_grade_2_Y: Optional[float]
+    MM_extrusion_pre: Optional[float]
+    MM_extrusion_post: Optional[float]
+
+    class Config:
+        from_attributes = True
+
+class CSVFileBase(BaseModel):
+    id: int
+    last_modified_time: datetime
+    model_architecture: Optional[str]
+
+    class Config:
+        from_attributes = True
+
+class CSVFileList(CSVFileBase):
+    data: Optional[List[DataEntry]] = None
+    message: Optional[str] = None
+
+class CSVFileResponse(CSVFileBase):
+    data: List[DataEntry]
+    message: str
+
+class CSVFileListResponse(BaseModel):
+    files: List[CSVFileBase]

@@ -14,7 +14,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from .session import engine, Base
 
 # Import models here
-table_objects = [CSVFile.__table__, User.__table__, Sent.__table__, Model.__table__]
+table_objects = [CSVFile.__table__, User.__table__, Sent.__table__, Model.__table__ , Data.__table__ ]
 # Create tables in the database
 Base.metadata.create_all(engine, tables=table_objects)
 

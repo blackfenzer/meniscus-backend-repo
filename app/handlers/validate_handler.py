@@ -46,7 +46,7 @@ def validate_train_request_csv(file_path: str) -> bool:
                     return False
 
     except Exception as e:
-        print(f"Exception: {e}")
+        print(f"Exception kuay: {e}")
         return False
 
     return True
