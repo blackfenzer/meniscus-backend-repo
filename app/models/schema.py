@@ -117,6 +117,7 @@ class CSVFile(Base):
         db.commit()
         return csv_file
 
+
 class Model(Base):
     __tablename__ = "models"
     id = Column(Integer, primary_key=True)
@@ -129,6 +130,8 @@ class Model(Base):
     # model_data = Column(BLOB)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.now())
+    csv_id = Column(Integer, ForeignKey("csv_files.id"), nullable=True)
+
 
 class Sent(Base):
     __tablename__ = "sents"
