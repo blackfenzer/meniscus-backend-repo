@@ -108,7 +108,6 @@ class CSVFile(Base):
         db.commit()
         return csv_file
 
-
 class Model(Base):
     __tablename__ = "models"
     id = Column(Integer, primary_key=True)
@@ -117,6 +116,31 @@ class Model(Base):
     final_loss = Column(Double)
     model_path = Column(String)
     model_data = Column(BLOB)
+
+    @classmethod
+    def store_pth_in_db(model_id: int, pth_file_path: str):
+        with open(pth_file_path, 'rb') as file:
+            binary_data = file.read()
+
+        db: Session = SessionLocal()
+        try:
+            model_instance = db.query(Model).filter(Model.id == model_id).first()
+            if not model_instance:
+                print(f"No model found with ID: {model_id}")
+                return
+
+            model_instance.model_data = binary_data
+            model_instance.model_path = pth_file_path
+
+            db.commit()
+            print(f"Model data from {pth_file_path} has been successfully stored in the database.")
+
+        except Exception as e:
+            db.rollback()
+            print(f"An error occurred: {e}")
+
+        finally:
+            db.close()
 
 class Sent(Base):
     __tablename__ = "sents"
