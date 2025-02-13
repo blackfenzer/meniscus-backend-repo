@@ -58,13 +58,22 @@ async def validate_and_upload_csv(
     if not file.filename.endswith(".csv"):
         raise HTTPException(status_code=400, detail="File must be a CSV")
     try:
-        # Read CSV content directly from memory
-        csv_content = (await file.read()).decode("utf-8")
+        ## Read CSV content directly from memory
+        temp_file = f"temp_{file.filename}"
+        with open(temp_file, "wb") as f:
+            f.write(await file.read())
+        # csv_content = (await file.read()).decode("utf-8")
 
-        #TODO
         # Validate CSV headers
-        # if not validate_train_request_csv(csv_content):
-        #     raise HTTPException(status_code=400, detail="Invalid CSV format")
+        if not validate_train_request_csv(temp_file):
+            os.remove(temp_file)
+            raise HTTPException(status_code=400, detail="Invalid CSV format")
+        
+        with open(temp_file, "r", encoding="utf-8") as f:
+            csv_content = f.read()
+            
+        os.remove(temp_file)
+        
         # Save data to DB using the CSVFile model's method
         CSVFile.create_from_csv(db, csv_content)
 
