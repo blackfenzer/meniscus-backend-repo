@@ -80,8 +80,7 @@ class RegressionService:
         except KeyError as e:
             return {"error": f"Missing field: {e.args[0]}"}
         features_array = np.array([features])
-        
-        
+
         # Apply the same scaling as during training.
         transformed_input = self.scaler.transform(features_array)
         tensor_input = torch.tensor(transformed_input, dtype=torch.float32)

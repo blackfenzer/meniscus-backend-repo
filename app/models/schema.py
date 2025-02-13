@@ -2,7 +2,16 @@ import csv
 from datetime import datetime
 from typing import List, Optional
 from requests import Session
-from sqlalchemy import BLOB, Column, DateTime, Double, ForeignKey, Integer, String, Boolean
+from sqlalchemy import (
+    BLOB,
+    Column,
+    DateTime,
+    Double,
+    ForeignKey,
+    Integer,
+    String,
+    Boolean,
+)
 from sqlalchemy.orm import DeclarativeBase, relationship
 import bcrypt
 import sqlalchemy
@@ -112,11 +121,16 @@ class CSVFile(Base):
 class Model(Base):
     __tablename__ = "models"
     id = Column(Integer, primary_key=True)
+    name = Column(String, unique=True)
     model_architecture = Column(String)
-    train_date = Column(DateTime, default=datetime.now(), nullable=False)
+    # train_date = Column(DateTime, default=datetime.now(), nullable=False)
     final_loss = Column(Double)
     model_path = Column(String)
-    model_data = Column(BLOB)
+    bentoml_tag = Column(String)
+    # model_data = Column(BLOB)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.now())
+
 
 class Sent(Base):
     __tablename__ = "sents"
