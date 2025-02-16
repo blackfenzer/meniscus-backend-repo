@@ -60,6 +60,20 @@ class DynamicRegressionService:
 
         except Exception as e:
             return {"error": f"Prediction failed: {str(e)}"}
+    
+    @bentoml.api
+    async def delete_model(self, model_tag: str):
+        # Remove from cache
+        if model_tag in model_cache:
+            del model_cache[model_tag]
+            
+        # Optional: Verify deletion from store
+        try:
+            bentoml.models.delete(model_tag)
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
+            
+        return {"status": "success"}
 
     def validate_request(self, payload: Dict) -> bool:
         # Add any additional security checks here

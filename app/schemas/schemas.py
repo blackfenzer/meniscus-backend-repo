@@ -120,6 +120,7 @@ class DataEntry(BaseModel):
 #     class Config:
 #         from_attributes = True
 
+
 class DataEntry(BaseModel):
     sex: Optional[int]
     age: Optional[int]
@@ -145,6 +146,7 @@ class DataEntry(BaseModel):
     class Config:
         from_attributes = True
 
+
 class CSVFileBase(BaseModel):
     id: int
     last_modified_time: datetime
@@ -153,15 +155,28 @@ class CSVFileBase(BaseModel):
     class Config:
         from_attributes = True
 
+
 class CSVFileList(CSVFileBase):
     data: Optional[List[DataEntry]] = None
     message: Optional[str] = None
+
 
 class CSVFileResponse(CSVFileBase):
     data: List[DataEntry]
     message: str
 
+
 class CSVFileListResponse(BaseModel):
     files: List[CSVFileBase]
-    
-    
+
+
+class AllModelResponse(BaseModel):
+    id: int
+    name: str
+    model_architecture: str
+    final_loss: float | None
+    model_path: str
+    bentoml_tag: str
+    is_active: bool
+    created_at: datetime
+    csv_id: int | None
