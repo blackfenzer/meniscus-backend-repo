@@ -1,4 +1,6 @@
 import os
+import torch
+import bentoml
 from fastapi import APIRouter, Depends, UploadFile, File, HTTPException
 from typing import Dict, List
 
@@ -15,6 +17,9 @@ from app.handlers.validate_handler import (
 )
 from app.database.session import get_db
 from app.models.schema import CSVFile
+from app.models.schema import Model
+from app.core.regression_net import RegressionNet
+from io import BytesIO
 
 router = APIRouter()
 
@@ -102,3 +107,62 @@ async def list_csv_files(db: Session = Depends(get_db)):
     }
 
 ## TODO get csv file
+
+## TODO train model and upload model
+@router.post("/model_train")
+async def model_train_endpoint(file: UploadFile = File(...), db: Session = Depends(get_db)):
+    temp_file = f"temp_{file.filename}"
+    try:
+        with open(temp_file, "wb") as f:
+            f.write(await file.read())
+
+        validation_result = await validate_train_request_endpoint(file, db)
+        if not validation_result["valid"]:
+            os.remove(temp_file)
+            raise HTTPException(status_code=400, detail="Invalid CSV format")
+
+        content = await file.read()
+        checkpoint = torch.load(
+            BytesIO(content), map_location="cpu", weights_only=False
+        )
+        os.remove(temp_file)
+
+        # Initialize model with the correct architecture
+        model = RegressionNet(input_dim=10, hidden_dim=151, num_layers=2, dropout=0.15)
+        model.load_state_dict(checkpoint["model_state_dict"])
+        model.eval()
+        scripted_model = torch.jit.script(model)
+
+        # Save to BentoML model store
+        bento_model = bentoml.torchscript.save_model(
+            "regression_model",
+            scripted_model,
+            custom_objects={
+                "scaler": checkpoint["scaler"],
+                "config": {
+                    "input_dim": 10,
+                    "hidden_dim": 151,
+                    "num_layers": 2,
+                    "dropout": 0.15,
+                },
+            },
+            labels={"version": "1.0", "description": "Regression model"},
+        )
+
+        db_model = Model(
+            name="regression_model",
+            model_architecture="RegressionNet",
+            model_path=file.filename,
+            bentoml_tag=str(bento_model.tag),
+            is_active=True,
+            csv_id=checkpoint.get("csv_id", None),
+        )
+        db.add(db_model)
+        db.commit()
+
+        return {"status": "success", "bentoml_tag": str(bento_model.tag)}
+    except Exception as e:
+        if os.path.exists(temp_file):
+            os.remove(temp_file)
+        raise HTTPException(status_code=500, detail=f"Error processing CSV: {str(e)}")
+
