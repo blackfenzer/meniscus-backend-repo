@@ -72,7 +72,7 @@ async def list_csv_files(db: Session = Depends(get_db)):
 
 
 # Read a specific CSV file by ID
-@router.get("/{csv_file_id}", response_model=CSVFileResponse)
+@router.get("/{csv_file_id}", response_model=CSVFileBase)
 def read_csv_file(csv_file_id: int, db: Session = Depends(get_db)):
     csv_file = db.query(CSVFile).filter(CSVFile.id == csv_file_id).first()
     if not csv_file:
