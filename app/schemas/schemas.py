@@ -11,6 +11,13 @@ class UserSchema(BaseModel):
     role: str
     is_active: bool
 
+class UserUpdateSchema(BaseModel):
+    id: int
+    username: Optional[str] = None
+    password: Optional[str] = None
+    role: Optional[str] = None
+    is_active: Optional[bool] = None
+
 
 class Token(BaseModel):
     access_token: str
