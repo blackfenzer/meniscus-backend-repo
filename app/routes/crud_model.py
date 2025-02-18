@@ -23,14 +23,14 @@ router = APIRouter()
 #     return db_model
 
 
-@router.get("/models/", response_model=list[AllModelResponse])
+@router.get("/", response_model=list[AllModelResponse])
 def read_models(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     return (
         db.query(Model).filter(Model.is_active == True).offset(skip).limit(limit).all()
     )
 
 
-@router.get("/models/{model_name}", response_model=AllModelResponse)
+@router.get("/{model_name}", response_model=AllModelResponse)
 def read_model(model_name: str, db: Session = Depends(get_db)):
     model = (
         db.query(Model)
@@ -60,7 +60,7 @@ def read_model(model_name: str, db: Session = Depends(get_db)):
 #     return db_model
 
 
-@router.delete("/models/{model_name}")
+@router.delete("/{model_name}")
 def delete_model(model_name: str, db: Session = Depends(get_db)):
     db_model = (
         db.query(Model)
