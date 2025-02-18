@@ -64,6 +64,7 @@ class CSVFile(Base):
 
         # Read CSV content from memory
         reader = csv.DictReader(StringIO(csv_content))
+
         rows = list(reader)
         length = len(rows)
         csv_file.length = length
