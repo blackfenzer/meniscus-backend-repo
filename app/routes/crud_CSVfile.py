@@ -4,10 +4,11 @@ from datetime import datetime
 import csv
 from io import StringIO
 from app.database.session import get_db
-from app.models.schema import CSVFile, Data
+from app.models.schema import CSVFile, CSVData
 from app.schemas.schemas import CSVFileResponse
 
 router = APIRouter()
+
 
 # Create a CSV file entry and store data
 @router.post("/", response_model=CSVFileResponse)
@@ -18,7 +19,9 @@ async def upload_csv_file(file: UploadFile = File(...), db: Session = Depends(ge
         csv_file = CSVFile.create_from_csv(db, csv_content)
         return csv_file
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Error processing CSV file: {str(e)}")
+        raise HTTPException(
+            status_code=400, detail=f"Error processing CSV file: {str(e)}"
+        )
 
 
 # Read all CSV files
@@ -38,7 +41,9 @@ def read_csv_file(csv_file_id: int, db: Session = Depends(get_db)):
 
 # Update CSV file metadata
 @router.put("/{csv_file_id}", response_model=CSVFileResponse)
-def update_csv_file(csv_file_id: int, model_architecture: str, db: Session = Depends(get_db)):
+def update_csv_file(
+    csv_file_id: int, model_architecture: str, db: Session = Depends(get_db)
+):
     csv_file = db.query(CSVFile).filter(CSVFile.id == csv_file_id).first()
     if not csv_file:
         raise HTTPException(status_code=404, detail="CSV file not found")
@@ -64,13 +69,15 @@ def delete_csv_file(csv_file_id: int, db: Session = Depends(get_db)):
 
     try:
         # Delete related data entries
-        db.query(Data).filter(Data.csv_file_id == csv_file.id).delete()
+        db.query(CSVData).filter(CSVData.csv_file_id == csv_file.id).delete()
 
         # Delete CSV file record
         db.delete(csv_file)
         db.commit()
     except Exception as e:
         db.rollback()
-        raise HTTPException(status_code=500, detail=f"Database deletion failed: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Database deletion failed: {str(e)}"
+        )
 
     return {"message": "CSV file deleted successfully"}
