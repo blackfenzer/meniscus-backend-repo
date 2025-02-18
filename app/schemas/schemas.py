@@ -3,11 +3,11 @@ from pydantic import ConfigDict
 from typing import List, Optional
 from datetime import datetime
 
-
 class UserSchema(BaseModel):
+    id: int
     username: str
     password: str
-    is_admin: bool
+    role: str
     is_active: bool
 
 

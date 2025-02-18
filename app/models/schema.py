@@ -51,6 +51,7 @@ class CSVFile(Base):
     id = Column(Integer, primary_key=True)
     last_modified_time = Column(DateTime, default=datetime.now())
     model_architecture = Column(String)
+    length = Column(Integer)
 
     data_entries = relationship("CSVData", back_populates="csv_file")
     sents = relationship("Sent", back_populates="csv_file")
@@ -60,12 +61,16 @@ class CSVFile(Base):
         # Create a new CSVFile entry
         csv_file = cls()
         db.add(csv_file)
-        db.commit()
-        db.refresh(csv_file)
 
         # Read CSV content from memory
         reader = csv.DictReader(StringIO(csv_content))
 
+        rows = list(reader)
+        length = len(rows)
+        csv_file.length = length
+        db.commit()
+        db.refresh(csv_file)
+        
         for row in reader:
             data_entry = CSVData(
                 csv_file_id=csv_file.id,
