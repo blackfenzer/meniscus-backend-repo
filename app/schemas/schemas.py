@@ -3,6 +3,7 @@ from pydantic import ConfigDict
 from typing import List, Optional
 from datetime import datetime
 
+
 class UserSchema(BaseModel):
     id: int
     username: str
@@ -151,6 +152,7 @@ class CSVFileBase(BaseModel):
     id: int
     last_modified_time: datetime
     model_architecture: Optional[str]
+    length: Optional[int]
 
     class Config:
         from_attributes = True
@@ -189,3 +191,8 @@ class AllModelUpdate(BaseModel):
     bentoml_tag: Optional[str] = None
     is_active: Optional[bool] = None
     csv_id: Optional[int] = None
+
+
+class CSVUpdate(BaseModel):
+    model_architecture: Optional[str]
+    length: Optional[int]
