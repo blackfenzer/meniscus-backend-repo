@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
 from app.database.session import get_db
 from app.models.schema import User
-from app.schemas.schemas import LoginRequest, RegisterRequest, Token, CSVFileResponse, UserSchema
+from app.schemas.schemas import LoginRequest, RegisterRequest, Token, CSVFileResponse, UserSchema, UserUpdateSchema
 from app.security.jwt_handler import create_access_token, validate_nextauth_jwt
 
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 30
@@ -21,8 +21,8 @@ def read_user(user_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="User not found")
     return user
 
-@router.put("/{user_id}", response_model=UserSchema)
-def update_user(user_id: int, user: UserSchema, db: Session = Depends(get_db)):
+@router.put("/{user_id}", response_model=UserUpdateSchema)
+def update_user(user_id: int, user: UserUpdateSchema, db: Session = Depends(get_db)):
     db_user = db.query(User).filter(User.id == user_id).first()
     if not db_user:
         raise HTTPException(status_code=404, detail="User not found")
