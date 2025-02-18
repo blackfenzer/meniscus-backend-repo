@@ -180,3 +180,12 @@ class AllModelResponse(BaseModel):
     is_active: bool
     created_at: datetime
     csv_id: int | None
+
+
+class AllModelUpdate(BaseModel):
+    model_architecture: Optional[str] = None
+    final_loss: Optional[float] = None
+    model_path: Optional[str] = None
+    bentoml_tag: Optional[str] = None
+    is_active: Optional[bool] = None
+    csv_id: Optional[int] = None

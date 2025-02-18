@@ -65,6 +65,7 @@ class CSVFile(Base):
 
         # Read CSV content from memory
         reader = csv.DictReader(StringIO(csv_content))
+        
         for row in reader:
             data_entry = Data(
                 csv_file_id=csv_file.id,
