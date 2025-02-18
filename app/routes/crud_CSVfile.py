@@ -6,7 +6,12 @@ import csv
 from io import StringIO
 from app.database.session import get_db
 from app.models.schema import CSVFile, CSVData
-from app.schemas.schemas import CSVFileBase, CSVFileListResponse, CSVFileResponse
+from app.schemas.schemas import (
+    CSVFileBase,
+    CSVFileListResponse,
+    CSVFileResponse,
+    CSVUpdate,
+)
 from app.handlers.validate_handler import validate_train_request_csv
 
 router = APIRouter()
@@ -76,10 +81,8 @@ def read_csv_file(csv_file_id: int, db: Session = Depends(get_db)):
 
 
 # Update CSV file metadata
-@router.put("/{csv_file_id}", response_model=CSVFileResponse)
-def update_csv_file(
-    csv_file_id: int, model: CSVFileBase, db: Session = Depends(get_db)
-):
+@router.put("/{csv_file_id}", response_model=CSVFileBase)
+def update_csv_file(csv_file_id: int, model: CSVUpdate, db: Session = Depends(get_db)):
     csv_file = db.query(CSVFile).filter(CSVFile.id == csv_file_id).first()
     if not csv_file:
         raise HTTPException(status_code=404, detail="CSV file not found")
