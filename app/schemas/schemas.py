@@ -189,6 +189,8 @@ class AllModelResponse(BaseModel):
     is_active: bool
     created_at: datetime
     csv_id: int | None
+    version: str | None
+    description: str | None
 
 
 class AllModelUpdate(BaseModel):
@@ -198,6 +200,8 @@ class AllModelUpdate(BaseModel):
     bentoml_tag: Optional[str] = None
     is_active: Optional[bool] = None
     csv_id: Optional[int] = None
+    version: Optional[str] = None
+    description: Optional[str] = None
 
 
 class CSVUpdate(BaseModel):
