@@ -13,7 +13,6 @@ class UserSchema(BaseModel):
 
 
 class UserUpdateSchema(BaseModel):
-    id: int
     username: Optional[str] = None
     password: Optional[str] = None
     role: Optional[str] = None
