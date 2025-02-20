@@ -1,3 +1,4 @@
+import os
 from pydantic import BaseModel, Field
 from app.database.session import get_db
 from sqlalchemy.orm import Session
@@ -19,7 +20,8 @@ from sqlalchemy.orm import Session
 import httpx
 
 router = APIRouter()
-BENTOML_URL = "http://localhost:5010/predict"  # Internal BentoML endpoint
+HOST = os.getenv("BENTOML_HOST")
+BENTOML_URL = os.getenv(f"{HOST}/predict", "http://localhost:5000/predict")
 
 
 class PredictionRequest(BaseModel):

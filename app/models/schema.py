@@ -121,6 +121,8 @@ class CSVFile(Base):
             )
             db.add(data_entry)
         db.commit()
+        
+        return csv_file
 
 
 class Model(Base):
