@@ -48,8 +48,6 @@ def train_model_from_csv(csv_bytes: bytes):
         raise ValueError("CSV does not have the required number of columns")
     X = df.drop("IKDC 2 Y", axis=1).values  # Features
     y = df["IKDC 2 Y"].values  # Target
-    # X = df.iloc[:, :-1].values  # Features
-    # y = df.iloc[:, -1].values  # Target
 
     # Normalize features
     scaler = StandardScaler()
