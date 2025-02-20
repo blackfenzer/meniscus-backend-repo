@@ -116,7 +116,13 @@ async def list_csv_files(db: Session = Depends(get_db)):
 
 ## TODO train model and upload model
 @router.post("/model_train")
-async def model_train_endpoint(file: UploadFile = File(...), db: Session = Depends(get_db)):
+async def model_train_endpoint(
+    name: str,
+    version: str,
+    description: str,
+    file: UploadFile = File(...), 
+    db: Session = Depends(get_db)
+):
     if not file.filename.endswith(".csv"):
         raise HTTPException(status_code=400, detail="File must be a CSV")
 
@@ -155,17 +161,19 @@ async def model_train_endpoint(file: UploadFile = File(...), db: Session = Depen
                     "dropout": 0.15,
                 },
             },
-            labels={"version": "1.0", "description": "Regression model"},
+            labels={"version": version, "description": description},
         )
 
         # Save model record in DB
         db_model = Model(
-            name="regression_model",
+            name=name,
             model_architecture="RegressionNet",
             model_path=file.filename,
             bentoml_tag=str(bento_model.tag),
             is_active=True,
             csv_id=csv_record.id,  # Store CSV ID
+            version=version,
+            description=description,
         )
         db.add(db_model)
         db.commit()

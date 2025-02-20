@@ -5,6 +5,10 @@ import torch.optim as optim
 from sklearn.preprocessing import StandardScaler
 from io import BytesIO
 
+TRAIN_COLUMNS = [
+    "sex", "age", "side", "BW", "Ht", "BMI", "IKDC pre", "Lysholm pre", "Pre KL grade", "MM extrusion pre", "IKDC 2 Y"
+]
+
 class RegressionNet(nn.Module):
     def __init__(self, input_dim, hidden_dim, num_layers, dropout):
         super(RegressionNet, self).__init__()
@@ -29,7 +33,6 @@ class RegressionNet(nn.Module):
     def forward(self, x):
         return self.model(x)
 
-
 def train_model_from_csv(csv_bytes: bytes):
     # Convert bytes to pandas DataFrame
     csv_data = BytesIO(csv_bytes)
@@ -37,12 +40,16 @@ def train_model_from_csv(csv_bytes: bytes):
 
     print("CSV Shape:", df.shape)  # Debugging log
 
-    # Ensure CSV has the correct columns
-    if df.shape[1] < 2:  # At least one feature and one target column
-        raise ValueError("CSV does not have the required number of columns")
+    # Ensure only required columns are used
+    df = df[TRAIN_COLUMNS]  # Drop other columns
 
-    X = df.iloc[:, :-1].values  # Features
-    y = df.iloc[:, -1].values  # Target
+    # Ensure CSV has the correct columns
+    if df.shape[1] < len(TRAIN_COLUMNS):
+        raise ValueError("CSV does not have the required number of columns")
+    X = df.drop("IKDC 2 Y", axis=1).values  # Features
+    y = df["IKDC 2 Y"].values  # Target
+    # X = df.iloc[:, :-1].values  # Features
+    # y = df.iloc[:, -1].values  # Target
 
     # Normalize features
     scaler = StandardScaler()

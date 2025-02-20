@@ -19,7 +19,7 @@ from sqlalchemy.orm import Session
 import httpx
 
 router = APIRouter()
-BENTOML_URL = "http://localhost:5000/predict"  # Internal BentoML endpoint
+BENTOML_URL = "http://localhost:5010/predict"  # Internal BentoML endpoint
 
 
 class PredictionRequest(BaseModel):
