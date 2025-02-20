@@ -136,6 +136,8 @@ class Model(Base):
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.now())
     csv_id = Column(Integer, ForeignKey("csv_files.id"), nullable=True)
+    version = Column(String)
+    description = Column(String)
 
 
 class Sent(Base):
