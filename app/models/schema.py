@@ -18,7 +18,7 @@ import sqlalchemy
 from io import StringIO
 from app.database.session import SessionLocal
 
-Base = sqlalchemy.orm.declarative_base()
+# Base = sqlalchemy.orm.declarative_base()
 
 
 class Base(DeclarativeBase):
@@ -51,8 +51,9 @@ class CSVFile(Base):
     id = Column(Integer, primary_key=True)
     last_modified_time = Column(DateTime, default=datetime.now())
     model_architecture = Column(String)
+    length = Column(Integer)
 
-    data_entries = relationship("Data", back_populates="csv_file")
+    data_entries = relationship("CSVData", back_populates="csv_file")
     sents = relationship("Sent", back_populates="csv_file")
 
     @classmethod
@@ -60,13 +61,18 @@ class CSVFile(Base):
         # Create a new CSVFile entry
         csv_file = cls()
         db.add(csv_file)
-        db.commit()
-        db.refresh(csv_file)
 
         # Read CSV content from memory
         reader = csv.DictReader(StringIO(csv_content))
+
+        rows = list(reader)
+        length = len(rows)
+        csv_file.length = length
+        db.commit()
+        db.refresh(csv_file)
+        
         for row in reader:
-            data_entry = Data(
+            data_entry = CSVData(
                 csv_file_id=csv_file.id,
                 sex=int(row["sex"]) if row["sex"] else None,
                 age=int(row["age"]) if row["age"] else None,
@@ -145,10 +151,10 @@ class Sent(Base):
     csv_file = relationship("CSVFile", back_populates="sents")
 
 
-class Data(Base):
-    __tablename__ = "data"
-    csv_file_id = Column(Integer, ForeignKey("csv_files.id"), nullable=False)
+class CSVData(Base):
+    __tablename__ = "csv_data"
     id = Column(Integer, primary_key=True)
+
     sex = Column(Integer)
     age = Column(Integer)
     side = Column(Double)
@@ -170,4 +176,5 @@ class Data(Base):
     MM_extrusion_pre = Column(Double)
     MM_extrusion_post = Column(Double)
 
+    csv_file_id = Column(Integer, ForeignKey("csv_files.id"), nullable=False)
     csv_file = relationship("CSVFile", back_populates="data_entries")

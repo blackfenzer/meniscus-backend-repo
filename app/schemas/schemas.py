@@ -5,10 +5,18 @@ from datetime import datetime
 
 
 class UserSchema(BaseModel):
+    id: int
     username: str
     password: str
-    is_admin: bool
+    role: str
     is_active: bool
+
+
+class UserUpdateSchema(BaseModel):
+    username: Optional[str] = None
+    password: Optional[str] = None
+    role: Optional[str] = None
+    is_active: Optional[bool] = None
 
 
 class Token(BaseModel):
@@ -151,6 +159,7 @@ class CSVFileBase(BaseModel):
     id: int
     last_modified_time: datetime
     model_architecture: Optional[str]
+    length: Optional[int]
 
     class Config:
         from_attributes = True
@@ -180,3 +189,17 @@ class AllModelResponse(BaseModel):
     is_active: bool
     created_at: datetime
     csv_id: int | None
+
+
+class AllModelUpdate(BaseModel):
+    model_architecture: Optional[str] = None
+    final_loss: Optional[float] = None
+    model_path: Optional[str] = None
+    bentoml_tag: Optional[str] = None
+    is_active: Optional[bool] = None
+    csv_id: Optional[int] = None
+
+
+class CSVUpdate(BaseModel):
+    model_architecture: Optional[str]
+    length: Optional[int]
