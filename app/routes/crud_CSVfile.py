@@ -1,5 +1,6 @@
 import os
 from fastapi import APIRouter, HTTPException, Depends, UploadFile, File
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from datetime import datetime
 import csv
@@ -121,3 +122,77 @@ def delete_csv_file(csv_file_id: int, db: Session = Depends(get_db)):
         )
 
     return {"message": "CSV file deleted successfully"}
+
+
+@router.get("/download/{csv_file_id}")
+def download_csv(csv_file_id: int, db: Session = Depends(get_db)):
+    # Retrieve the CSVFile record; adjust filtering as needed
+    csv_file_record = db.query(CSVFile).filter(CSVFile.id == csv_file_id).first()
+    if not csv_file_record:
+        raise HTTPException(status_code=404, detail="CSV file not found")
+
+    # Retrieve associated data entries
+    data_entries = db.query(CSVData).filter(CSVData.csv_file_id == csv_file_id).all()
+
+    # Create an in-memory CSV file
+    output = StringIO()
+    writer = csv.writer(output)
+
+    # Write the header row (adjust the headers to match your Data model)
+    headers = [
+        "sex",
+        "age",
+        "side",
+        "BW",
+        "Ht",
+        "BMI",
+        "IKDC pre",
+        "IKDC 3 m",
+        "IKDC 6 m",
+        "IKDC 1 Y",
+        "IKDC 2 Y",
+        "Lysholm pre",
+        "Lysholm 3 m",
+        "Lysholm 6 m",
+        "Lysholm 1 Y",
+        "Lysholm 2 Y",
+        "Pre KL grade",
+        "Post KL grade 2 Y",
+        "MM extrusion pre",
+        "MM extrusion post",
+    ]
+    writer.writerow(headers)
+
+    # Write each data row
+    for entry in data_entries:
+        writer.writerow(
+            [
+                entry.sex,
+                entry.age,
+                entry.side,
+                entry.BW,
+                entry.Ht,
+                entry.BMI,
+                entry.IKDC_pre,
+                entry.IKDC_3_m,
+                entry.IKDC_6_m,
+                entry.IKDC_1_Y,
+                entry.IKDC_2_Y,
+                entry.Lysholm_pre,
+                entry.Lysholm_3_m,
+                entry.Lysholm_6_m,
+                entry.Lysholm_1_Y,
+                entry.Lysholm_2_Y,
+                entry.Pre_KL_grade,
+                entry.Post_KL_grade_2_Y,
+                entry.MM_extrusion_pre,
+                entry.MM_extrusion_post,
+            ]
+        )
+
+    # Reset the StringIO object's cursor to the beginning
+    output.seek(0)
+
+    # Create a StreamingResponse to send the CSV file
+    headers = {"Content-Disposition": "attachment; filename=export.csv"}
+    return StreamingResponse(output, media_type="text/csv", headers=headers)
