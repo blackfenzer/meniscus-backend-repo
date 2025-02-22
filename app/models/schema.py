@@ -70,8 +70,8 @@ class CSVFile(Base):
         csv_file.length = length
         db.commit()
         db.refresh(csv_file)
-        
-        for row in reader:
+
+        for row in rows:
             data_entry = CSVData(
                 csv_file_id=csv_file.id,
                 sex=int(row["sex"]) if row["sex"] else None,
@@ -121,6 +121,7 @@ class CSVFile(Base):
             )
             db.add(data_entry)
         db.commit()
+        
         return csv_file
 
 
@@ -137,6 +138,8 @@ class Model(Base):
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.now())
     csv_id = Column(Integer, ForeignKey("csv_files.id"), nullable=True)
+    version = Column(String)
+    description = Column(String)
 
 
 class Sent(Base):

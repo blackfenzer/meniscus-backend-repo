@@ -16,11 +16,13 @@ from app.handlers.validate_handler import (
     validate_train_request_csv,
     validate_predict_request,
 )
+from app.handlers.clean_handler import clean_train_request_csv
 from app.database.session import get_db
 from app.models.schema import CSVFile, CSVData, Model
 from app.core.regression_net import RegressionNet
 from io import BytesIO, StringIO
 import csv
+from app.handlers.model_trainer import train_model_from_csv 
 
 router = APIRouter()
 
@@ -115,36 +117,43 @@ async def list_csv_files(db: Session = Depends(get_db)):
 ## TODO train model and upload model
 @router.post("/model_train")
 async def model_train_endpoint(
-    file: UploadFile = File(...), db: Session = Depends(get_db)
+    name: str,
+    version: str,
+    description: str,
+    file: UploadFile = File(...), 
+    db: Session = Depends(get_db)
 ):
-    temp_file = f"temp_{file.filename}"
+    if not file.filename.endswith(".csv"):
+        raise HTTPException(status_code=400, detail="File must be a CSV")
+
     try:
-        with open(temp_file, "wb") as f:
-            f.write(await file.read())
+        # Read CSV content as string
+        csv_content = (await file.read()).decode("utf-8")
 
-        validation_result = await validate_train_request_endpoint(file, db)
-        if not validation_result["valid"]:
-            os.remove(temp_file)
-            raise HTTPException(status_code=400, detail="Invalid CSV format")
+        # Clean CSV
+        cleaned_csv = clean_train_request_csv(csv_content)
+        if cleaned_csv is None:
+            raise HTTPException(status_code=500, detail="Error cleaning CSV")
 
-        content = await file.read()
-        checkpoint = torch.load(
-            BytesIO(content), map_location="cpu", weights_only=False
-        )
-        os.remove(temp_file)
+        # Save CSV to database
+        csv_record = CSVFile.create_from_csv(db, cleaned_csv)
 
-        # Initialize model with the correct architecture
-        model = RegressionNet(input_dim=10, hidden_dim=151, num_layers=2, dropout=0.15)
-        model.load_state_dict(checkpoint["model_state_dict"])
-        model.eval()
+        # Reset file pointer before reading again
+        await file.seek(0)
+        csv_bytes = await file.read()
+
+        # Train model using cleaned CSV (Implement your model training here)
+        model, scaler = train_model_from_csv(csv_bytes)
+
+        # Convert trained model to TorchScript
         scripted_model = torch.jit.script(model)
 
-        # Save to BentoML model store
+        # Save model to BentoML
         bento_model = bentoml.torchscript.save_model(
             "regression_model",
             scripted_model,
             custom_objects={
-                "scaler": checkpoint["scaler"],
+                "scaler": scaler,
                 "config": {
                     "input_dim": 10,
                     "hidden_dim": 151,
@@ -152,24 +161,26 @@ async def model_train_endpoint(
                     "dropout": 0.15,
                 },
             },
-            labels={"version": "1.0", "description": "Regression model"},
+            labels={"version": version, "description": description},
         )
 
+        # Save model record in DB
         db_model = Model(
-            name="regression_model",
+            name=name,
             model_architecture="RegressionNet",
             model_path=file.filename,
             bentoml_tag=str(bento_model.tag),
             is_active=True,
-            csv_id=checkpoint.get("csv_id", None),
+            csv_id=csv_record.id,  # Store CSV ID
+            version=version,
+            description=description,
         )
         db.add(db_model)
         db.commit()
 
         return {"status": "success", "bentoml_tag": str(bento_model.tag)}
+
     except Exception as e:
-        if os.path.exists(temp_file):
-            os.remove(temp_file)
         raise HTTPException(status_code=500, detail=f"Error processing CSV: {str(e)}")
 
 
