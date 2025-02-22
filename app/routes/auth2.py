@@ -76,6 +76,21 @@ async def get_current_user(request: Request, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="Inactive user")
     return user
 
+async def check_user():
+    try:
+        if (Depends(get_current_user) == "user"):
+            return True
+        return False
+    except:
+        return False
+    
+async def check_admin():
+    try:
+        if (Depends(get_current_user) == "admin"):
+            return True
+        return False
+    except:
+        return False
 
 # Routes
 @router.post("/login")
