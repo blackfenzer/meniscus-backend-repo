@@ -112,7 +112,11 @@ async def login(
         max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
     )
 
-    return {"message": "Login successful","access_token":access_token, "csrf_token": csrf_token}
+    return {
+        "message": "Login successful",
+        "access_token": access_token,
+        "csrf_token": csrf_token,
+    }
 
 
 @router.post("/logout")
@@ -129,6 +133,7 @@ async def test_auth(current_user: User = Depends(get_current_user)):
         "username": current_user.username,
         "role": current_user.role,
     }
+
 
 @router.post("/submit-data")
 async def submit_data(request: Request, current_user: User = Depends(get_current_user)):
@@ -157,6 +162,7 @@ async def submit_data(request: Request, current_user: User = Depends(get_current
 #     data = await request.json()
 #     # Process the data here
 #     return {"message": "Data submitted successfully"}
+
 
 @router.post("/register")
 def register(username: str, password: str, db: Session = Depends(get_db)):

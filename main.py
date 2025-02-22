@@ -1,10 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.routes import (
-    protected,
-    auth,
     auth2,
-    nn_model,
     validate,
     clean,
     torch,
@@ -34,8 +31,6 @@ app.add_exception_handler(CsrfProtectError, csrf_protect_exception_handler)
 
 # Include Routes
 # app.include_router(auth.router)
-app.include_router(protected.router)
-app.include_router(auth.router)
 app.include_router(auth2.router, prefix="/api/v1", tags=["auth2"])
 app.include_router(validate.router, prefix="/smart", tags=["smart"])
 app.include_router(clean.router, prefix="/smart", tags={"smart"})
