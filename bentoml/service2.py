@@ -4,6 +4,7 @@ import numpy as np
 from pydantic import BaseModel
 import torch
 from typing import Dict, Any
+from app.routes.auth2 import check_user, check_admin
 
 model_cache = {}
 
@@ -24,6 +25,8 @@ class DynamicRegressionService:
         # FastAPI will handle auth, this is just an extra layer
         # if not self.validate_request(payload):
         #     return {"error": "Unauthorized"}
+        #if (not check_user()):
+        #    return bentoml.Response({"error": "User not authorized"}, status=403)
 
         model_tag = payload.model_tag
         input_data = payload.input_data
@@ -43,7 +46,7 @@ class DynamicRegressionService:
                 # Cache the model and scaler
                 model_cache[model_tag] = (model, scaler)
             except Exception as e:
-                return {"error": f"Model loading failed: {str(e)}"}
+                return bentoml.Response({"error": f"Model loading failed: {str(e)}"}, status=500)
 
         model, scaler = model_cache[model_tag]
 
@@ -56,13 +59,16 @@ class DynamicRegressionService:
             with torch.no_grad():
                 prediction = model(tensor_input).numpy().tolist()
 
-            return {"prediction": prediction}
+            return bentoml.Response({"prediction": prediction}, status=200)
 
         except Exception as e:
-            return {"error": f"Prediction failed: {str(e)}"}
+            return bentoml.Response({"error": f"Prediction failed: {str(e)}"}, status=500)
     
     @bentoml.api
     async def delete_model(self, model_tag: str):
+        if (not check_admin()):
+            return {"error": f"user not authorized"}
+        
         # Remove from cache
         if model_tag in model_cache:
             del model_cache[model_tag]
@@ -71,9 +77,9 @@ class DynamicRegressionService:
         try:
             bentoml.models.delete(model_tag)
         except Exception as e:
-            return {"status": "error", "message": str(e)}
+            return bentoml.Response({"status": "error", "message": str(e)}, status=500)
             
-        return {"status": "success"}
+        return bentoml.Response({"status": "success"}, status=200)
 
     def validate_request(self, payload: Dict) -> bool:
         # Add any additional security checks here
