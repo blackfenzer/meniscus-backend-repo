@@ -22,7 +22,7 @@ from app.models.schema import CSVFile, CSVData, Model
 from app.core.regression_net import RegressionNet
 from io import BytesIO, StringIO
 import csv
-from app.handlers.model_trainer import train_model_from_csv 
+from app.handlers.model_trainer import train_model_from_csv, train_model_with_kfold
 
 router = APIRouter()
 
@@ -120,8 +120,8 @@ async def model_train_endpoint(
     name: str,
     version: str,
     description: str,
-    file: UploadFile = File(...), 
-    db: Session = Depends(get_db)
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
 ):
     if not file.filename.endswith(".csv"):
         raise HTTPException(status_code=400, detail="File must be a CSV")
@@ -143,7 +143,9 @@ async def model_train_endpoint(
         csv_bytes = await file.read()
 
         # Train model using cleaned CSV (Implement your model training here)
-        model, scaler = train_model_from_csv(csv_bytes)
+        # model, scaler = train_model_from_csv(csv_bytes)
+
+        model, scaler, rmse, r2 = train_model_with_kfold(csv_bytes)
 
         # Convert trained model to TorchScript
         scripted_model = torch.jit.script(model)
@@ -174,6 +176,7 @@ async def model_train_endpoint(
             csv_id=csv_record.id,  # Store CSV ID
             version=version,
             description=description,
+            final_loss=rmse,
         )
         db.add(db_model)
         db.commit()

@@ -92,8 +92,7 @@ def augment_smogn(df: pd.DataFrame, target_column: str) -> pd.DataFrame:
             [70, 0.1, 0],  ## Reduce under-sampling
         ],
     )
-    print(added_df.head(3))
-    augmented_df = pd.concat([df, added_df], ignore_index=True)
+    augmented_df = pd.DataFrame(added_df)
     return augmented_df
 
 
