@@ -4,10 +4,26 @@ import torch.nn as nn
 import torch.optim as optim
 from sklearn.preprocessing import StandardScaler
 from io import BytesIO
+from app.handlers.augment_handler import (
+    augment_smogn,
+    missing_imputation,
+    noise_augmentation,
+)
 
 TRAIN_COLUMNS = [
-    "sex", "age", "side", "BW", "Ht", "BMI", "IKDC pre", "Lysholm pre", "Pre KL grade", "MM extrusion pre", "IKDC 2 Y"
+    "sex",
+    "age",
+    "side",
+    "BW",
+    "Ht",
+    "BMI",
+    "IKDC pre",
+    "Lysholm pre",
+    "Pre KL grade",
+    "MM extrusion pre",
+    "IKDC 2 Y",
 ]
+
 
 class RegressionNet(nn.Module):
     def __init__(self, input_dim, hidden_dim, num_layers, dropout):
@@ -20,7 +36,7 @@ class RegressionNet(nn.Module):
         layers.append(nn.Dropout(dropout))
 
         # Hidden layers: hidden_dim → hidden_dim
-        for _ in range(num_layers - 1):  
+        for _ in range(num_layers - 1):
             layers.append(nn.Linear(hidden_dim, hidden_dim))
             layers.append(nn.ReLU())
             layers.append(nn.Dropout(dropout))
@@ -33,11 +49,14 @@ class RegressionNet(nn.Module):
     def forward(self, x):
         return self.model(x)
 
+
 def train_model_from_csv(csv_bytes: bytes):
     # Convert bytes to pandas DataFrame
     csv_data = BytesIO(csv_bytes)
     df = pd.read_csv(csv_data)
-
+    df = missing_imputation(df)
+    # df = augment_smogn(df, "IKDC 2 Y")
+    df = noise_augmentation(df, "IKDC 2 Y")
     print("CSV Shape:", df.shape)  # Debugging log
 
     # Ensure only required columns are used
@@ -62,12 +81,14 @@ def train_model_from_csv(csv_bytes: bytes):
 
     # Initialize model with dynamic input dimension
     input_dim = X.shape[1]  # Dynamically set input dimension
-    model = RegressionNet(input_dim=input_dim, hidden_dim=151, num_layers=2, dropout=0.15)
+    model = RegressionNet(
+        input_dim=input_dim, hidden_dim=151, num_layers=2, dropout=0.15
+    )
 
     # Training setup
     criterion = nn.MSELoss()
     optimizer = optim.Adam(model.parameters(), lr=0.001)
-    
+
     # Train for 10 epochs
     for _ in range(10):
         optimizer.zero_grad()

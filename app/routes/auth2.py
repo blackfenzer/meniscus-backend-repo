@@ -191,3 +191,5 @@ def register(username: str, password: str, db: Session = Depends(get_db)):
     db.commit()
 
     return {"message": "User created"}
+
+

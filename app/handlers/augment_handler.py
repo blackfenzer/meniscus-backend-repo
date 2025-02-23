@@ -72,7 +72,7 @@ def missing_imputation(df: pd.DataFrame) -> pd.DataFrame:
 def augment_smogn(df: pd.DataFrame, target_column: str) -> pd.DataFrame:
     df = df.copy()
 
-    added_df, _, _, _ = smogn.smoter(
+    added_df = smogn.smoter(
         ## main arguments
         data=df,
         y=target_column,
@@ -93,7 +93,8 @@ def augment_smogn(df: pd.DataFrame, target_column: str) -> pd.DataFrame:
         ],
     )
     print(added_df.head(3))
-    return added_df
+    augmented_df = pd.concat([df, added_df], ignore_index=True)
+    return augmented_df
 
 
 def noise_augmentation(df: pd.DataFrame, target_column: str) -> pd.DataFrame:
