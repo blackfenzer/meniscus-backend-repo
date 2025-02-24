@@ -4,6 +4,7 @@ import torch
 import bentoml
 from fastapi import APIRouter, Depends, UploadFile, File, HTTPException
 from typing import Dict, List
+from app.models.schema import User
 
 from sqlalchemy.orm import Session
 from app.schemas.schemas import (
@@ -26,6 +27,21 @@ from app.handlers.model_trainer import train_model_from_csv, train_model_with_kf
 
 router = APIRouter()
 
+async def get_current_user(request: Request, db: Session = Depends(get_db)):
+    token = request.cookies.get(COOKIE_NAME)
+    if not token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    username = verify_token(token)
+    if not username:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+
+    user = db.query(User).filter(User.username == username).first()
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+    if not user.is_active:
+        raise HTTPException(status_code=400, detail="Inactive user")
+    return user
 
 @router.post("/validate-predict-json")
 async def validate_predict_request_endpoint(
@@ -122,7 +138,11 @@ async def model_train_endpoint(
     description: str,
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
     if not file.filename.endswith(".csv"):
         raise HTTPException(status_code=400, detail="File must be a CSV")
 
