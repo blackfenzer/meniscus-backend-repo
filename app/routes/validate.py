@@ -177,6 +177,7 @@ async def model_train_endpoint(
             version=version,
             description=description,
             final_loss=rmse,
+            r2=r2,
         )
         db.add(db_model)
         db.commit()

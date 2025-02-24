@@ -149,6 +149,22 @@ class DynamicRegressionService:
                 logger.critical("Unexpected error in deletion", error=str(e))
                 return {"error": "Internal server error"}, 500
 
+    @bentoml.api
+    async def delete_all_models(self):
+        request_id = str(uuid.uuid4())
+        with logger.contextualize(request_id=request_id):
+            try:
+                logger.info("Delete All model request received")
+                model_cache.clear()
+                logger.info("All models removed from cache")
+                models = bentoml.models.list()
+                for model in models:
+                    logger.success(f"Model {model.tag} deleted successfully")
+                    bentoml.models.delete(model.tag)
+            except Exception as e:
+                logger.critical("Unexpected error in deletion", error=str(e))
+                return {"error": "Internal server error"}, 500
+
     def validate_request(self, payload: Dict) -> bool:
         # Add any additional security checks here
         return True  # Replace with actual validation logic

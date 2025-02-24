@@ -184,6 +184,7 @@ class AllModelResponse(BaseModel):
     name: str
     model_architecture: str
     final_loss: float | None
+    r2: float | None
     model_path: str
     bentoml_tag: str
     is_active: bool
