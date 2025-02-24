@@ -64,13 +64,14 @@ else:  # Production configuration
     )
 model_cache = {}
 
+
 def verify_token(token: str):
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        username = payload.get("sub")
-        if username is None:
+        role = payload.get("role")
+        if role is None:
             return None
-        return username
+        return role
     except JWTError:
         return None
 
@@ -87,55 +88,46 @@ class PredictInput(BaseModel):
 class DynamicRegressionService:
 
     @bentoml.api
-    async def predict(self, payload: PredictInput) -> Dict[str, Any]:
-        request_id = str(uuid.uuid4())
-        with logger.contextualize(request_id=request_id):
+    async def predict(self, payload: PredictInput , ) -> Dict[str, Any]:
+        # FastAPI will handle auth, this is just an extra layer
+        # if not self.validate_request(payload):
+        #     return {"error": "Unauthorized"}
+
+        model_tag = payload.model_tag
+        input_data = payload.input_data
+
+        # Load model with caching
+        if model_tag not in model_cache:
             try:
-                logger.info(
-                    "Predict request started",
-                    model_tag=payload.model_tag,
-                    input_keys=list(payload.input_data.keys()),
-                )
+                model = bentoml.torchscript.load_model(model_tag)
 
-                # Authentication
-                # if not check_user():
-                #     logger.warning("Unauthorized access attempt")
-                #     return {"error": "User not authorized"}, 403
+                # Access custom objects
+                bento_model = bentoml.models.get(model_tag)
+                scaler = bento_model.custom_objects["scaler"]
+                print(scaler)
+                # Set the model to evaluation mode
+                model.eval()
 
-                # Model loading
-                if payload.model_tag not in model_cache:
-                    logger.info("Loading new model", model_tag=payload.model_tag)
-                    try:
-                        model = bentoml.torchscript.load_model(payload.model_tag)
-                        bento_model = bentoml.models.get(payload.model_tag)
-                        scaler = bento_model.custom_objects["scaler"]
-                        model.eval()
-                        model_cache[payload.model_tag] = (model, scaler)
-                        logger.success("Model loaded successfully")
-                    except Exception as e:
-                        logger.error("Model loading failed", error=str(e))
-                        return {"error": f"Model loading failed: {str(e)}"}, 500
-
-                # Prediction
-                model, scaler = model_cache[payload.model_tag]
-                try:
-                    features = self.extract_features(payload.input_data)
-                    transformed = scaler.transform([features])
-                    tensor_input = torch.tensor(transformed, dtype=torch.float32)
-
-                    with torch.no_grad():
-                        prediction = model(tensor_input).numpy().tolist()
-
-                    logger.info("Prediction completed successfully")
-                    return {"prediction": prediction}
-
-                except Exception as e:
-                    logger.error("Prediction failed", error=str(e))
-                    return {"error": f"Prediction failed: {str(e)}"}, 500
-
+                # Cache the model and scaler
+                model_cache[model_tag] = (model, scaler)
             except Exception as e:
-                logger.critical("Unexpected error in prediction", error=str(e))
-                return {"error": "Internal server error"}, 500
+                return {"error": f"Model loading failed: {str(e)}"}, 500
+
+        model, scaler = model_cache[model_tag]
+
+        # Process input
+        try:
+            features = self.extract_features(input_data)
+            transformed = scaler.transform([features])
+            tensor_input = torch.tensor(transformed, dtype=torch.float32)
+
+            with torch.no_grad():
+                prediction = model(tensor_input).numpy().tolist()
+
+            return {"prediction": prediction}, 200
+
+        except Exception as e:
+            return {"error": f"Prediction failed: {str(e)}"}, 500
 
     @bentoml.api
     async def delete_model(self, model_tag: str):

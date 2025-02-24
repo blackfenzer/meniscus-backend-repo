@@ -30,6 +30,8 @@ router = APIRouter()
 COOKIE_NAME = "session_token"
 CSRF_COOKIE_NAME = "csrf_token"
 SECRET_KEY = "your-secret-key-change-this"
+ALGORITHM = "HS256"
+
 
 def verify_token(token: str):
     try:
@@ -40,6 +42,7 @@ def verify_token(token: str):
         return username
     except JWTError:
         return None
+
 
 async def get_current_user(request: Request, db: Session = Depends(get_db)):
     token = request.cookies.get(COOKIE_NAME)
@@ -56,6 +59,7 @@ async def get_current_user(request: Request, db: Session = Depends(get_db)):
     if not user.is_active:
         raise HTTPException(status_code=400, detail="Inactive user")
     return user
+
 
 @router.post("/validate-predict-json")
 async def validate_predict_request_endpoint(
@@ -183,7 +187,7 @@ async def model_train_endpoint(
 
         # Save model to BentoML
         bento_model = bentoml.torchscript.save_model(
-            "regression_model",
+            name,
             scripted_model,
             custom_objects={
                 "scaler": scaler,
