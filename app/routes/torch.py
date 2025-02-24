@@ -1,3 +1,4 @@
+import logging
 import os
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, Field
@@ -111,6 +112,9 @@ async def predict(
 
     # Forward the request to the BentoML service
     try:
+        logging.basicConfig(level=logging.DEBUG)
+        logging.debug(f"Received input data: {input_data}")
+
         async with httpx.AsyncClient() as client:
             response = await client.post(
                 BENTOML_URL,

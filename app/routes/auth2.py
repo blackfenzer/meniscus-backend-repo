@@ -58,6 +58,12 @@ def verify_token(token: str):
     except JWTError:
         return None
 
+async def get_token(request: Request, db: Session = Depends(get_db)):
+    token = request.cookies.get(COOKIE_NAME)
+    if not token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    return token
 
 # Dependency to get current user
 async def get_current_user(request: Request, db: Session = Depends(get_db)):

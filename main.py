@@ -83,6 +83,8 @@ async def logging_middleware(request: Request, call_next):
         )
 
         start_time = time.time()
+        response = None
+        
         try:
             response = await call_next(request)
         except Exception as e:

@@ -5,20 +5,25 @@ from pydantic import BaseModel
 import torch
 from typing import Dict, Any
 
-# from app.routes.auth2 import check_user, check_admin
 from loguru import logger
 import os
 import sys
 import uuid
 from pathlib import Path
 from dotenv import load_dotenv
+from jose import JWTError, jwt
 
 load_dotenv()
+
+# get secret key and hash function
 
 # Configure logging
 ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
 LOG_LEVEL = os.getenv("LOG_LEVEL", "DEBUG" if ENVIRONMENT == "development" else "INFO")
 LOG_PATH = os.getenv("LOG_PATH", "logs/bentoml.log")
+
+SECRET_KEY = "super-secret-key-change-this"
+ALGORITHM = "HS256"
 
 # Create log directory if needed
 Path("logs").mkdir(exist_ok=True)
@@ -59,6 +64,16 @@ else:  # Production configuration
     )
 model_cache = {}
 
+def verify_token(token: str):
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username = payload.get("sub")
+        if username is None:
+            return None
+        return username
+    except JWTError:
+        return None
+
 
 class PredictInput(BaseModel):
     model_tag: str
@@ -83,9 +98,9 @@ class DynamicRegressionService:
                 )
 
                 # Authentication
-                # if not check_user():
-                #     logger.warning("Unauthorized access attempt")
-                #     return {"error": "User not authorized"}, 403
+                if not check_user():
+                    logger.warning("Unauthorized access attempt")
+                    return {"error": "User not authorized"}, 403
 
                 # Model loading
                 if payload.model_tag not in model_cache:
@@ -129,9 +144,9 @@ class DynamicRegressionService:
             try:
                 logger.info("Delete model request received", model_tag=model_tag)
 
-                # if not check_admin():
-                #     logger.warning("Unauthorized delete attempt")
-                #     return {"error": "User not authorized"}, 403
+                if not check_admin():
+                    logger.warning("Unauthorized delete attempt")
+                    return {"error": "User not authorized"}, 403
 
                 if model_tag in model_cache:
                     del model_cache[model_tag]
