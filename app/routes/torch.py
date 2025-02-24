@@ -21,7 +21,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session
 import httpx
 
-from app.routes.auth2 import get_current_user
+from app.routes.auth2 import get_current_token, get_current_user
 
 router = APIRouter()
 HOST = os.getenv("BENTOML_HOST")
@@ -94,6 +94,7 @@ async def predict(
     model_name: str,
     prediction_request: PredictionRequest,
     db: Session = Depends(get_db),
+    token: str = Depends(get_current_token),
 ):
     # Extract data from the request
     model_tag = prediction_request.model_tag
@@ -136,6 +137,7 @@ async def predict(
                     },
                     "YOUR_SECURE_TOKEN": "string",
                 },
+                headers={"Authorization": f"Bearer {token}"},  # Add to header
                 timeout=30,
             )
         response.raise_for_status()
@@ -146,7 +148,9 @@ async def predict(
             status_code=500, detail=f"Prediction service error: {str(e)}"
         )
 
+
 COOKIE_NAME = "session_token"
+
 
 @router.post("/{model_name}")
 async def predict(
@@ -155,14 +159,12 @@ async def predict(
     request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),  # Use your existing dependency
+    token: str = Depends(get_current_user),
 ):
     # Verify active user status (already handled in get_current_user)
 
     # Prepare headers for BentoML
-    headers = {
-        "Cookie": f"{COOKIE_NAME}={request.cookies.get(COOKIE_NAME)}",
-        "X-CSRF-Token": request.cookies.get("csrf_token", ""),
-    }
+
     model_tag = prediction_request.model_tag
     input_data = prediction_request.input_data.dict()
     # input_data = convert_csv_row_ten_types(input_data.values)

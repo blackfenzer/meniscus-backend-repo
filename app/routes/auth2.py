@@ -58,12 +58,14 @@ def verify_token(token: str):
     except JWTError:
         return None
 
+
 async def get_token(request: Request, db: Session = Depends(get_db)):
     token = request.cookies.get(COOKIE_NAME)
     if not token:
         raise HTTPException(status_code=401, detail="Not authenticated")
-    
+
     return token
+
 
 # Dependency to get current user
 async def get_current_user(request: Request, db: Session = Depends(get_db)):
@@ -82,21 +84,31 @@ async def get_current_user(request: Request, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="Inactive user")
     return user
 
+
+async def get_current_token(request: Request, db: Session = Depends(get_db)):
+    token = request.cookies.get(COOKIE_NAME)
+    if not token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    return token
+
+
 async def check_user():
     try:
-        if (Depends(get_current_user) == "user"):
+        if Depends(get_current_user) == "user":
             return True
         return False
     except:
         return False
-    
+
+
 async def check_admin():
     try:
-        if (Depends(get_current_user) == "admin"):
+        if Depends(get_current_user) == "admin":
             return True
         return False
     except:
         return False
+
 
 # Routes
 @router.post("/login")
@@ -197,5 +209,3 @@ def register(username: str, password: str, db: Session = Depends(get_db)):
     db.commit()
 
     return {"message": "User created"}
-
-
