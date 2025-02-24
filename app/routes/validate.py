@@ -2,7 +2,7 @@ import os
 from fastapi.responses import StreamingResponse
 import torch
 import bentoml
-from fastapi import APIRouter, Depends, UploadFile, File, HTTPException
+from fastapi import APIRouter, Depends, UploadFile, File, HTTPException, Request
 from typing import Dict, List
 from app.models.schema import User
 
@@ -24,8 +24,22 @@ from app.core.regression_net import RegressionNet
 from io import BytesIO, StringIO
 import csv
 from app.handlers.model_trainer import train_model_from_csv, train_model_with_kfold
+from jose import JWTError, jwt
 
 router = APIRouter()
+COOKIE_NAME = "session_token"
+CSRF_COOKIE_NAME = "csrf_token"
+SECRET_KEY = "your-secret-key-change-this"
+
+def verify_token(token: str):
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username = payload.get("sub")
+        if username is None:
+            return None
+        return username
+    except JWTError:
+        return None
 
 async def get_current_user(request: Request, db: Session = Depends(get_db)):
     token = request.cookies.get(COOKIE_NAME)
