@@ -122,18 +122,7 @@ async def predict(
                 json={
                     "payload": {
                         "model_tag": model.bentoml_tag,
-                        "input_data": {
-                            "sex": input_data["sex"],
-                            "age": input_data["age"],
-                            "side": input_data["side"],
-                            "BW": input_data["BW"],
-                            "Ht": input_data["Ht"],
-                            "BMI": input_data["BMI"],
-                            "IKDC pre": input_data["IKDC_pre"],
-                            "Lysholm pre": input_data["Lysholm_pre"],
-                            "Pre KL grade": input_data["Pre_KL_grade"],
-                            "MM extrusion pre": input_data["MM_extrusion_pre"],
-                        },
+                        "input_data": input_data,
                     },
                     "YOUR_SECURE_TOKEN": "string",
                 },

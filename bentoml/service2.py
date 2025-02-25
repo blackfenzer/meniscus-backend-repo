@@ -3,7 +3,7 @@ from bentoml.io import JSON
 import numpy as np
 from pydantic import BaseModel
 import torch
-from typing import Dict, Any
+from typing import Dict, Any, List
 
 from loguru import logger
 import os
@@ -76,9 +76,30 @@ def verify_token(token: str):
         return None
 
 
+# class PredictInput(BaseModel):
+#     model_tag: str
+#     input_data: Dict[str, Any]
+
+
+class PredictData(BaseModel):
+    sex: int
+    age: int
+    side: int
+    BW: float
+    Ht: float
+    BMI: float
+    IKDC_pre: float
+    Lysholm_pre: float
+    Pre_KL_grade: float
+    MM_extrusion_pre: float
+
+    class Config:
+        populate_by_name = True
+
+
 class PredictInput(BaseModel):
     model_tag: str
-    input_data: Dict[str, Any]
+    input_data: PredictData
 
 
 @bentoml.service(
@@ -88,46 +109,57 @@ class PredictInput(BaseModel):
 class DynamicRegressionService:
 
     @bentoml.api
-    async def predict(self, payload: PredictInput , ) -> Dict[str, Any]:
+    async def predict(
+        self,
+        payload: PredictInput,
+    ):
+        request_id = str(uuid.uuid4())
+        with logger.contextualize(request_id=request_id):
+            try:
+                logger.info("Prediction request received")
         # FastAPI will handle auth, this is just an extra layer
         # if not self.validate_request(payload):
         #     return {"error": "Unauthorized"}
 
-        model_tag = payload.model_tag
-        input_data = payload.input_data
+                model_tag = payload.model_tag
+                input_data = payload.input_data
 
-        # Load model with caching
-        if model_tag not in model_cache:
-            try:
-                model = bentoml.torchscript.load_model(model_tag)
+                # Load model with caching
+                if model_tag not in model_cache:
+                    try:
+                        model = bentoml.torchscript.load_model(model_tag)
 
-                # Access custom objects
-                bento_model = bentoml.models.get(model_tag)
-                scaler = bento_model.custom_objects["scaler"]
-                print(scaler)
-                # Set the model to evaluation mode
-                model.eval()
+                        # Access custom objects
+                        bento_model = bentoml.models.get(model_tag)
+                        scaler = bento_model.custom_objects["scaler"]
+                        print(scaler)
+                        # Set the model to evaluation mode
+                        model.eval()
 
-                # Cache the model and scaler
-                model_cache[model_tag] = (model, scaler)
+                        # Cache the model and scaler
+                        model_cache[model_tag] = (model, scaler)
+                    except Exception as e:
+                        return {"error": f"Model loading failed: {str(e)}"}, 500
+
+                model, scaler = model_cache[model_tag]
+
+                # Process input
+                try:
+                    features = self.extract_features2(input_data)
+                    transformed = scaler.transform([features])
+                    tensor_input = torch.tensor(transformed, dtype=torch.float32)
+
+                    with torch.no_grad():
+                        prediction = model(tensor_input).numpy().tolist()
+                    logger.info("Prediction completed", prediction=prediction)
+                    return {"prediction": prediction}, 200
+
+                except Exception as e:
+                    return {"error": f"Prediction failed: {str(e)}"}, 500
+
             except Exception as e:
-                return {"error": f"Model loading failed: {str(e)}"}, 500
-
-        model, scaler = model_cache[model_tag]
-
-        # Process input
-        try:
-            features = self.extract_features(input_data)
-            transformed = scaler.transform([features])
-            tensor_input = torch.tensor(transformed, dtype=torch.float32)
-
-            with torch.no_grad():
-                prediction = model(tensor_input).numpy().tolist()
-
-            return {"prediction": prediction}, 200
-
-        except Exception as e:
-            return {"error": f"Prediction failed: {str(e)}"}, 500
+                logger.critical("Unexpected error in prediction", error=str(e))
+                return {"error": "Internal server error"}, 500
 
     @bentoml.api
     async def delete_model(self, model_tag: str):
@@ -189,3 +221,28 @@ class DynamicRegressionService:
             input_data["Pre KL grade"],
             input_data["MM extrusion pre"],
         ]
+
+    def extract_features2(self, input_data: PredictData) -> List[float]:
+        feature_dict = input_data.dict()
+
+        # Rename feature keys to match expected column names
+        column_name_mapping = {
+            "Pre_KL_grade": "Pre KL grade",
+            "MM_extrusion_pre": "MM extrusion pre",
+            "IKDC_pre": "IKDC pre",
+            "Lysholm_pre": "Lysholm pre",
+            "BW": "BW",  # No change needed, but listed for clarity
+            "Ht": "Ht",
+            "BMI": "BMI",
+            "sex": "sex",
+            "age": "age",
+            "side": "side",
+        }
+
+        # Apply mapping
+        renamed_features = {column_name_mapping[k]: v for k, v in feature_dict.items()}
+
+        # Convert to list in the correct order
+        feature_values = [renamed_features[col] for col in column_name_mapping.values()]
+
+        return feature_values
