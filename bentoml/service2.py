@@ -2,6 +2,7 @@ import bentoml
 from bentoml.io import JSON
 import numpy as np
 from pydantic import BaseModel
+from requests import Request
 import torch
 from typing import Dict, Any, List
 
@@ -13,6 +14,8 @@ from pathlib import Path
 from dotenv import load_dotenv
 from jose import JWTError, jwt
 
+from fastapi.middleware.cors import CORSMiddleware
+
 load_dotenv()
 
 # get secret key and hash function
@@ -21,9 +24,6 @@ load_dotenv()
 ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
 LOG_LEVEL = os.getenv("LOG_LEVEL", "DEBUG" if ENVIRONMENT == "development" else "INFO")
 LOG_PATH = os.getenv("LOG_PATH", "logs/bentoml.log")
-
-SECRET_KEY = "super-secret-key-change-this"
-ALGORITHM = "HS256"
 
 # Create log directory if needed
 Path("logs").mkdir(exist_ok=True)
@@ -105,72 +105,72 @@ class PredictInput(BaseModel):
 @bentoml.service(
     traffic={"timeout": 30},
     resources={"cpu": "2"},
+    http={
+        "cors": {
+            "enabled": True,
+            "access_control_allow_origins": ["*"],
+            "access_control_allow_methods": ["*"],
+            "access_control_allow_credentials": True,
+            "access_control_allow_headers": ["*"],
+        },
+    }
 )
 class DynamicRegressionService:
 
-    @bentoml.api
-    async def predict(
-        self,
-        payload: PredictInput,
-    ):
+    @bentoml.api(input_spec=PredictInput)
+    def predict(self, **payload: Any):
+
+        model_tag = payload["model_tag"]
+        input_data = payload["input_data"]
+        
         request_id = str(uuid.uuid4())
-        with logger.contextualize(request_id=request_id):
+        logger.bind(request_id=request_id).info("Predict request started", model_tag=model_tag)
+
+        # --- Authentication via gRPC metadata ---
+        # NOTE: In gRPC, metadata is passed differently than HTTP headers.
+        # BentoML’s gRPC handler makes metadata available via the context.
+        # Here we assume that you have a helper function to extract it.
+        # For example, you could do:
+        #   metadata = bentoml.get_request_metadata()
+        # For this demo, we use an empty dict.
+        metadata = {}  # Replace with actual metadata extraction
+
+        # --- Model Loading ---
+        if model_tag not in model_cache:
             try:
-                logger.info("Prediction request received")
-        # FastAPI will handle auth, this is just an extra layer
-        # if not self.validate_request(payload):
-        #     return {"error": "Unauthorized"}
-
-                model_tag = payload.model_tag
-                input_data = payload.input_data
-
-                # Load model with caching
-                if model_tag not in model_cache:
-                    try:
-                        model = bentoml.torchscript.load_model(model_tag)
-
-                        # Access custom objects
-                        bento_model = bentoml.models.get(model_tag)
-                        scaler = bento_model.custom_objects["scaler"]
-                        print(scaler)
-                        # Set the model to evaluation mode
-                        model.eval()
-
-                        # Cache the model and scaler
-                        model_cache[model_tag] = (model, scaler)
-                    except Exception as e:
-                        return {"error": f"Model loading failed: {str(e)}"}, 500
-
-                model, scaler = model_cache[model_tag]
-
-                # Process input
-                try:
-                    features = self.extract_features2(input_data)
-                    transformed = scaler.transform([features])
-                    tensor_input = torch.tensor(transformed, dtype=torch.float32)
-
-                    with torch.no_grad():
-                        prediction = model(tensor_input).numpy().tolist()
-                    logger.info("Prediction completed", prediction=prediction)
-                    return {"prediction": prediction}, 200
-
-                except Exception as e:
-                    return {"error": f"Prediction failed: {str(e)}"}, 500
-
+                logger.info("Loading new model", model_tag=model_tag)
+                model = bentoml.torchscript.load_model(model_tag)
+                bento_model = bentoml.models.get(model_tag)
+                scaler = bento_model.custom_objects["scaler"]
+                model.eval()
+                model_cache[model_tag] = (model, scaler)
+                logger.info("Model loaded successfully")
             except Exception as e:
-                logger.critical("Unexpected error in prediction", error=str(e))
-                return {"error": "Internal server error"}, 500
+                logger.error("Model loading failed", error=str(e))
+                return {"error": f"Model loading failed: {str(e)}"}, 500
+
+        # --- Prediction ---
+        model, scaler = model_cache[model_tag]
+        try:
+            features = self.extract_features(input_data)
+            transformed = scaler.transform([features])
+            tensor_input = torch.tensor(transformed, dtype=torch.float32)
+
+            with torch.no_grad():
+                prediction = model(tensor_input).numpy().tolist()
+
+            logger.info("Prediction completed successfully")
+            return {"prediction": prediction}
+        except Exception as e:
+            logger.error("Prediction failed", error=str(e))
+            return {"error": f"Prediction failed: {str(e)}"}, 500
 
     @bentoml.api
-    async def delete_model(self, model_tag: str):
+    async def delete_model(self, model_tag: str, request):
         request_id = str(uuid.uuid4())
         with logger.contextualize(request_id=request_id):
             try:
                 logger.info("Delete model request received", model_tag=model_tag)
-
-                # if not check_admin():
-                #     logger.warning("Unauthorized delete attempt")
-                #     return {"error": "User not authorized"}, 403
 
                 if model_tag in model_cache:
                     del model_cache[model_tag]
