@@ -100,8 +100,8 @@ class CSVFile(Base):
                     float(row["Pre KL grade"]) if row.get("Pre KL grade") else None
                 ),
                 Post_KL_grade_2_Y=(
-                    float(row["Post_KL_grade_2_Y"])
-                    if row.get("Post_KL_grade_2_Y")
+                    float(row["Post KL grade 2 Y"])
+                    if row.get("Post KL grade 2 Y")
                     else None
                 ),
                 MM_extrusion_pre=(
@@ -114,6 +114,31 @@ class CSVFile(Base):
                     if row.get("MM extrusion post")
                     else None
                 ),
+                MM_gap=float(row["MM gap"]) if row.get("MM gap") else None,
+                Degenerative_meniscus=
+                    float(row["Degenerative meniscus"])
+                    if row.get("Degenerative meniscus")
+                    else None
+                ,
+                medial_femoral_condyle=
+                    float(row["medial femoral condyle"])
+                    if row.get("medial femoral condyle")
+                    else None
+                ,
+                medial_tibial_condyle=
+                    float(row["medial tibial condyle"])
+                    if row.get("medial tibial condyle")
+                    else None
+                ,
+                lateral_femoral_condyle=
+                    float(row["lateral femoral condyle"])
+                    if row.get("lateral femoral condyle")
+                    else None
+                ,
+                lateral_tibial_condyle=
+                    float(row["lateral tibial condyle"])
+                    if row.get("lateral tibial condyle")
+                    else None,
             )
             db.add(data_entry)
         db.commit()
@@ -171,6 +196,12 @@ class CSVData(Base):
     Post_KL_grade_2_Y: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     MM_extrusion_pre: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     MM_extrusion_post: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    MM_gap: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    Degenerative_meniscus: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    medial_femoral_condyle: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    medial_tibial_condyle: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    lateral_femoral_condyle: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    lateral_tibial_condyle: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
 
     csv_file_id: Mapped[int] = mapped_column(ForeignKey("csv_files.id"))
     csv_file: Mapped["CSVFile"] = relationship(back_populates="data_entries")

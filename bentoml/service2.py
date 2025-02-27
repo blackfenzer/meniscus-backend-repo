@@ -92,6 +92,12 @@ class PredictData(BaseModel):
     Lysholm_pre: float
     Pre_KL_grade: float
     MM_extrusion_pre: float
+    MM_gap: float
+    Degenerative_meniscus: float
+    medial_femoral_condyle: float
+    medial_tibial_condyle: float
+    lateral_femoral_condyle: float
+    lateral_tibial_condyle: float
 
     class Config:
         populate_by_name = True
@@ -220,6 +226,12 @@ class DynamicRegressionService:
             input_data["Lysholm pre"],
             input_data["Pre KL grade"],
             input_data["MM extrusion pre"],
+            input_data["MM gap"],
+            input_data["Degenerative meniscus"],
+            input_data["medial femoral condyle"],
+            input_data["medial tibial condyle"],
+            input_data["lateral femoral condyle"],
+            input_data["lateral tibial condyle"],
         ]
 
     def extract_features2(self, input_data: PredictData) -> List[float]:
@@ -237,6 +249,12 @@ class DynamicRegressionService:
             "sex": "sex",
             "age": "age",
             "side": "side",
+            "MM_gap": "MM gap",
+            "Degenerative_meniscus": "Degenerative meniscus",
+            "medial_femoral_condyle": "medial femoral condyle",
+            "medial_tibial_condyle": "medial tibial condyle",
+            "lateral_femoral_condyle": "lateral femoral condyle",
+            "lateral_tibial_condyle": "lateral tibial condyle",
         }
 
         # Apply mapping

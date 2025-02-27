@@ -160,6 +160,12 @@ def download_csv(csv_file_id: int, db: Session = Depends(get_db)):
         "Post KL grade 2 Y",
         "MM extrusion pre",
         "MM extrusion post",
+        "MM gap",
+        "Degenerative meniscus",
+        "medial femoral condyle",
+        "medial tibial condyle",
+        "lateral femoral condyle",
+        "lateral tibial condyle",
     ]
     writer.writerow(headers)
 
@@ -187,6 +193,12 @@ def download_csv(csv_file_id: int, db: Session = Depends(get_db)):
                 entry.Post_KL_grade_2_Y,
                 entry.MM_extrusion_pre,
                 entry.MM_extrusion_post,
+                entry.MM_gap,
+                entry.Degenerative_meniscus,
+                entry.medial_femoral_condyle,
+                entry.medial_tibial_condyle,
+                entry.lateral_femoral_condyle,
+                entry.lateral_tibial_condyle,
             ]
         )
 

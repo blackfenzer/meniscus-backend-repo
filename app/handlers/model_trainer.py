@@ -26,6 +26,12 @@ TRAIN_COLUMNS = [
     "Pre KL grade",
     "MM extrusion pre",
     "IKDC 2 Y",
+    # "MM gap",
+    # "Degenerative meniscus",
+    # "medial femoral condyle",
+    # "medial tibial condyle",
+    # "lateral femoral condyle",
+    # "lateral tibial condyle",
 ]
 
 

@@ -24,6 +24,12 @@ TRAIN_COLUMNS = [
     "MRI healing 1 Y",
     "MM extrusion pre",
     "MM extrusion post",
+    "MM gap",
+    "Degenerative meniscus",
+    "medial femoral condyle",
+    "medial tibial condyle",
+    "lateral femoral condyle",
+    "lateral tibial condyle",
 ]
 
 
@@ -119,6 +125,12 @@ def convert_csv_row_types(row: dict) -> dict:
             "MRI_healing_1_Y": float(row["MRI healing 1 Y"]),
             "MM_extrusion_pre": float(row["MM extrusion pre"]),
             "MM_extrusion_post": float(row["MM extrusion post"]),
+            "MM_gap": float(row["MM gap"]),
+            "Degenerative_meniscus": float(row["Degenerative meniscus"]),
+            "medial_femoral_condyle": float(row["medial femoral condyle"]),
+            "medial_tibial_condyle": float(row["medial tibial condyle"]),
+            "lateral_femoral_condyle": float(row["lateral femoral condyle"]),
+            "lateral_tibial_condyle": float(row["lateral tibial condyle"]),
         }
 
     except ValueError:

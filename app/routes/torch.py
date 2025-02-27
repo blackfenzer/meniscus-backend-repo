@@ -26,7 +26,7 @@ from app.routes.auth2 import get_current_user, get_current_role
 
 router = APIRouter()
 HOST = os.getenv("BENTOML_HOST")
-BENTOML_URL = os.getenv(f"{HOST}/predict", "http://localhost:5000/predict")
+BENTOML_URL = os.getenv(f"{HOST}/predict", "http://localhost:5010/predict")
 
 
 class PredictionRequest(BaseModel):
@@ -189,6 +189,12 @@ async def predict(
                             "Lysholm pre": input_data["Lysholm_pre"],
                             "Pre KL grade": input_data["Pre_KL_grade"],
                             "MM extrusion pre": input_data["MM_extrusion_pre"],
+                            "MM gap": input_data["MM_gap"],
+                            "Degenerative meniscus": input_data["Degenerative_meniscus"],
+                            "medial femoral condyle": input_data["medial_femoral_condyle"],
+                            "medial tibial condyle": input_data["medial_tibial_condyle"],
+                            "lateral femoral condyle": input_data["lateral_femoral_condyle"],
+                            "lateral tibial condyle": input_data["lateral_tibial_condyle"],
                         },
                     },
                     "YOUR_SECURE_TOKEN": "string",

@@ -47,6 +47,12 @@ class PredictRequest(BaseModel):
     Lysholm_pre: float = Field(..., alias="Lysholm pre")
     Pre_KL_grade: float = Field(..., alias="Pre KL grade")
     MM_extrusion_pre: float = Field(..., alias="MM extrusion pre")
+    MM_gap: float = Field(..., alias="MM gap")
+    Degenerative_meniscus: float = Field(..., alias="Degenerative meniscus")
+    medial_femoral_condyle: float = Field(..., alias="medial femoral condyle")
+    medial_tibial_condyle: float = Field(..., alias="medial tibial condyle")
+    lateral_femoral_condyle: float = Field(..., alias="lateral femoral condyle")
+    lateral_tibial_condyle: float = Field(..., alias="lateral tibial condyle")
 
 
 class TrainRequest(BaseModel):
@@ -71,6 +77,12 @@ class TrainRequest(BaseModel):
     MRI_healing_1_Y: float = Field(..., alias="MRI healing 1 Y")
     MM_extrusion_pre: float = Field(..., alias="MM extrusion pre")
     MM_extrusion_post: float = Field(..., alias="MMextrusion post")
+    MM_gap: float = Field(..., alias="MM gap")
+    Degenerative_meniscus: float = Field(..., alias="Degenerative meniscus")
+    medial_femoral_condyle: float = Field(..., alias="medial femoral condyle")
+    medial_tibial_condyle: float = Field(..., alias="medial tibial condyle")
+    lateral_femoral_condyle: float = Field(..., alias="lateral femoral condyle")
+    lateral_tibial_condyle: float = Field(..., alias="lateral tibial condyle")
 
 
 class TrainConfig(BaseModel):
@@ -113,6 +125,12 @@ class DataEntry(BaseModel):
     Post_KL_grade_2_Y: Optional[float]
     MM_extrusion_pre: Optional[float]
     MM_extrusion_post: Optional[float]
+    MM_gap: Optional[float]
+    Degenerative_meniscus: Optional[float]
+    medial_femoral_condyle: Optional[float]
+    medial_tibial_condyle: Optional[float]
+    lateral_femoral_condyle: Optional[float]
+    lateral_tibial_condyle: Optional[float]
 
     class Config:
         from_attributes = True
@@ -150,6 +168,13 @@ class DataEntry(BaseModel):
     Post_KL_grade_2_Y: Optional[float]
     MM_extrusion_pre: Optional[float]
     MM_extrusion_post: Optional[float]
+    MM_gap: Optional[float]
+    Degenerative_meniscus: Optional[float]
+    medial_femoral_condyle: Optional[float]
+    medial_tibial_condyle: Optional[float]
+    lateral_femoral_condyle: Optional[float]
+    lateral_tibial_condyle: Optional[float]
+
 
     class Config:
         from_attributes = True

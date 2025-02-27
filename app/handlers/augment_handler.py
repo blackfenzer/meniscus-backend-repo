@@ -24,6 +24,12 @@ ALL_COLUMNS = [
     "MRI healing 1 Y",
     "MM extrusion pre",
     "MM extrusion post",
+    "MM gap",
+    "Degenerative meniscus",
+    "medial femoral condyle",
+    "medial tibial condyle",
+    "lateral femoral condyle",
+    "lateral tibial condyle",
 ]
 
 CATEGORICAL_COLUMNS = ["sex", "side"]
@@ -48,6 +54,12 @@ NUMERIC_COLUMNS = [
     "MRI healing 1 Y",
     "MM extrusion pre",
     "MM extrusion post",
+    "MM gap",
+    "Degenerative meniscus",
+    "medial femoral condyle",
+    "medial tibial condyle",
+    "lateral femoral condyle",
+    "lateral tibial condyle",
 ]
 
 
