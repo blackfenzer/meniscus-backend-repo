@@ -59,6 +59,17 @@ def verify_token(token: str):
         return None
 
 
+def role_token(token: str):
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        role = payload.get("role")
+        if role is None:
+            return None
+        return role
+    except JWTError:
+        return None
+
+
 async def get_token(request: Request, db: Session = Depends(get_db)):
     token = request.cookies.get(COOKIE_NAME)
     if not token:
@@ -83,6 +94,18 @@ async def get_current_user(request: Request, db: Session = Depends(get_db)):
     if not user.is_active:
         raise HTTPException(status_code=400, detail="Inactive user")
     return user
+
+
+async def get_current_role(request: Request, db: Session = Depends(get_db)):
+    token = request.cookies.get(COOKIE_NAME)
+    if not token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    role = role_token(token)
+    if not role:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+
+    return role
 
 
 async def get_current_token(request: Request, db: Session = Depends(get_db)):

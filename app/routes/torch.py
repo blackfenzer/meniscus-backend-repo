@@ -22,7 +22,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session
 import httpx
 
-from app.routes.auth2 import get_current_user
+from app.routes.auth2 import get_current_user, get_current_role
 
 router = APIRouter()
 HOST = os.getenv("BENTOML_HOST")
@@ -41,11 +41,11 @@ async def upload_model(
     description: str,
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    # current_user: User = Depends(get_current_user)
 ):
     # Authentication check here (add your logic)
-    if (current_user.role != "user"):
-        raise HTTPException(status_code=403, detail="User unauthorized")
+    # if (current_user.role != "user"):
+    #     raise HTTPException(status_code=403, detail="User unauthorized")
 
     # Load and verify model
     try:
@@ -98,11 +98,8 @@ async def predict(
     model_name: str,
     prediction_request: PredictionRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    role: User = Depends(get_current_user),
 ):
-    if (current_user.role != "user"):
-        raise HTTPException(status_code=403, detail="User unauthorized")
-    
     # Extract data from the request
     model_tag = prediction_request.model_tag
     input_data = prediction_request.input_data.dict()
@@ -131,9 +128,7 @@ async def predict(
                         "model_tag": model.bentoml_tag,
                         "input_data": input_data,
                     },
-                    "headers": {
-                        "Authorization": f"Bearer {get_token}"
-                    },
+                    "headers": {"Authorization": f"Bearer {get_token}"},
                     "YOUR_SECURE_TOKEN": "string",
                 },
                 timeout=30,
@@ -146,7 +141,9 @@ async def predict(
             status_code=500, detail=f"Prediction service error: {str(e)}"
         )
 
+
 COOKIE_NAME = "session_token"
+
 
 @router.post("/{model_name}")
 async def predict(
