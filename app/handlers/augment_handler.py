@@ -62,7 +62,6 @@ NUMERIC_COLUMNS = [
     "lateral tibial condyle",
 ]
 
-
 def missing_imputation(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
 
@@ -81,87 +80,80 @@ def missing_imputation(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def augment_smogn(df: pd.DataFrame, target_column: str) -> pd.DataFrame:
+def augment_smogn(df: pd.DataFrame, target_column: str, a=36, b=50, c=55, d=70) -> pd.DataFrame:
     df = df.copy()
-
     added_df = smogn.smoter(
-        ## main arguments
         data=df,
         y=target_column,
-        k=10,  ## Increase neighbors
-        pert=0.2,  ## Higher perturbation
-        samp_method="extreme",  ## Focus on minority oversampling
+        k=10,
+        pert=0.1,
+        samp_method="extreme",
         drop_na_col=True,
         drop_na_row=True,
-        replace=True,  ## Allow re-sampling
-        ## phi relevance arguments
+        replace=True,
         rel_thres=0.4,
         rel_method="manual",
         rel_ctrl_pts_rg=[
-            [36, 1, 0],  ## Keep minority oversampling
-            [50, 0.2, 0],  ## Reduce under-sampling
-            [55, 0.2, 0],  ## Reduce under-sampling
-            [70, 0.1, 0],  ## Reduce under-sampling
+            [a, 1.5, 0],
+            [b, 0.2, 0],
+            [c, 0.2, 0],
+            [d, 0.1, 0],
         ],
     )
     augmented_df = pd.DataFrame(added_df)
     return augmented_df
 
-
 def noise_augmentation(df: pd.DataFrame, target_column: str) -> pd.DataFrame:
     df = df.copy()
-    X = df.drop(
-        target_column, axis=1
-    ).values  # Assuming target_column is your target column
-    y = df[target_column].values
-
-    n_synthetic = 50
+    X = df.drop(target_column, axis=1)
+    y = df[target_column]
+    
+    feature_names = X.columns
+    feature_sds = X.std()
+    min_vals = X.min()
+    max_vals = X.max()
     synthetic_data = []
     synthetic_labels = []
-    feature_names = df.drop(target_column, axis=1).columns
-
-    # 1. Gaussian Noise
-    print("Generating samples with Gaussian noise...")
+    n_synthetic = 50
+    
+    # 1. Gaussian Noise with SD scaling
     for i in range(len(X)):
-        for _ in range(3):  # Generate 3 noisy samples per original sample
-            noise = np.random.normal(
-                0, 0.05, size=X.shape[1]
-            )  # Reduced noise level to 0.05
-            synthetic_x = X[i] + noise
-            # Ensure values stay within reasonable bounds
-            synthetic_x = np.clip(synthetic_x, X.min(axis=0), X.max(axis=0))
+        if np.random.rand() > 0.60:  # 30% chance to augment
+            noise = np.random.normal(0, 0.1, size=len(feature_sds)) * feature_sds
+            synthetic_x = X.iloc[i] + noise
+            synthetic_x = np.clip(synthetic_x, min_vals, max_vals)
             synthetic_data.append(synthetic_x)
-            synthetic_labels.append(y[i])
-
+            synthetic_labels.append(y.iloc[i])
+    
     # 2. Interpolation between samples
-    print("Generating interpolated samples...")
     for _ in range(n_synthetic):
         idx1, idx2 = np.random.randint(0, len(X), 2)
         alpha = np.random.random()
-        synthetic_x = X[idx1] * alpha + X[idx2] * (1 - alpha)
-        synthetic_y = y[idx1] * alpha + y[idx2] * (1 - alpha)
+        synthetic_x = X.iloc[idx1] * alpha + X.iloc[idx2] * (1 - alpha)
+        synthetic_y = y.iloc[idx1] * alpha + y.iloc[idx2] * (1 - alpha)
         synthetic_data.append(synthetic_x)
         synthetic_labels.append(synthetic_y)
-
+    
     # 3. Slight scaling
-    print("Generating scaled samples...")
     for i in range(len(X)):
-        scale = np.random.uniform(0.95, 1.05, size=X.shape[1])  # Reduced scale range
-        synthetic_x = X[i] * scale
+        scale = np.random.uniform(0.95, 1.05, size=len(feature_names))
+        synthetic_x = X.iloc[i] * scale
         synthetic_data.append(synthetic_x)
-        synthetic_labels.append(y[i])
-
-    # Convert to numpy arrays
-    synthetic_data = np.array(synthetic_data)
-    synthetic_labels = np.array(synthetic_labels)
-
+        synthetic_labels.append(y.iloc[i])
+    
     # Create DataFrame with synthetic data
     synthetic_df = pd.DataFrame(synthetic_data, columns=feature_names)
     synthetic_df[target_column] = synthetic_labels
-
+    
     # Combine original and synthetic data
-    final_df = pd.concat(
-        [df, synthetic_df], ignore_index=True  # Original data  # Synthetic data
-    )
+    final_df = pd.concat([df, synthetic_df], ignore_index=True)
+    return final_df
 
+def augment_data(df, target_column, a=36, b=50, c=55, d=70):
+    # First apply SMOGN augmentation
+    smogn_df = augment_smogn(df, target_column, a, b, c, d)
+    
+    # Then apply noise augmentation
+    final_df = noise_augmentation(smogn_df, target_column)
+    
     return final_df

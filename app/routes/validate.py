@@ -180,7 +180,10 @@ async def model_train_endpoint(
         # Train model using cleaned CSV (Implement your model training here)
         # model, scaler = train_model_from_csv(csv_bytes)
 
-        model, scaler, rmse, r2 = train_model_with_kfold(csv_bytes)
+        #from unine
+        best_params={'hidden_dim': 91, 'num_layers': 7, 'dropout': 0.0, 'lr': 0.017169731411333333, 'batch_size': 32}
+
+        model, scaler, rmse, r2 = train_model_with_kfold(csv_bytes, best_params)
 
         # Convert trained model to TorchScript
         scripted_model = torch.jit.script(model)
