@@ -1,91 +1,263 @@
 import bentoml
+from pydantic import BaseModel
 import torch
-from bentoml.io import NumpyNdarray
-from regression_net import RegressionNet
-import numpy as np
+from typing import Dict, List
+from loguru import logger
+import os
+import sys
+import uuid
+from pathlib import Path
+from dotenv import load_dotenv
+from jose import JWTError, jwt
 
-# Load your model
-# model = RegressionNet(input_dim=10, hidden_dim=177, num_layers=4, dropout=0.15)
-# model.load_state_dict(
-#     torch.load("../model_artifacts/regression_model.pth", map_location="cpu")
-# )
-# model.eval()
+load_dotenv()
 
-import torch
-import numpy as np
-import bentoml
-from bentoml.io import NumpyNdarray
-from sklearn.preprocessing import StandardScaler
+# get secret key and hash function
 
-# Allowlist your custom model class so that torch.load() can deserialize it safely.
-torch.serialization.add_safe_globals([RegressionNet])
-torch.serialization.add_safe_globals([StandardScaler])
+# Configure logging
+ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
+LOG_LEVEL = os.getenv("LOG_LEVEL", "DEBUG" if ENVIRONMENT == "development" else "INFO")
+LOG_PATH = os.getenv("LOG_PATH", "logs/bentoml.log")
+
+SECRET_KEY = "super-secret-key-change-this"
+ALGORITHM = "HS256"
+
+# Create log directory if needed
+Path("logs").mkdir(exist_ok=True)
+
+# Remove default logger and configure Loguru
+logger.remove()
+
+# Common log format
+log_format = (
+    "<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | "
+    "<level>{level: <8}</level> | "
+    "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> | "
+    "<magenta>{extra[request_id]}</magenta> - "
+    "<level>{message}</level>"
+)
+
+# Development configuration
+if ENVIRONMENT == "development":
+    logger.add(
+        sys.stdout,
+        level=LOG_LEVEL,
+        colorize=True,
+        format=log_format,
+        backtrace=True,
+        diagnose=True,
+    )
+else:  # Production configuration
+    logger.add(
+        LOG_PATH,
+        rotation=os.getenv("LOG_ROTATION", "500 MB"),
+        retention=os.getenv("LOG_RETENTION", "30 days"),
+        compression=os.getenv("LOG_COMPRESSION", "zip"),
+        level=LOG_LEVEL,
+        serialize=True,  # JSON format for production
+        enqueue=True,
+        backtrace=True,
+        diagnose=False,
+    )
+model_cache = {}
 
 
-@bentoml.service
-class RegressionService:
-    """
-    A BentoML service that loads a PyTorch model and its associated scaler
-    from a checkpoint file, then serves predictions.
-    """
+def verify_token(token: str):
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        role = payload.get("role")
+        if role is None:
+            return None
+        return role
+    except JWTError:
+        return None
 
-    def __init__(self):
-        # Load the model and scaler once when the service starts.
-        self.model, self.scaler = self._load_model_and_scaler()
 
-    def _load_model_and_scaler(self):
-        """
-        Loads the model state dict and scaler from a checkpoint file.
-        The checkpoint is expected to be a dictionary containing:
-          - 'model_state_dict': the PyTorch state dict of the model.
-          - 'scaler': an instance of a fitted scaler (e.g., StandardScaler).
-        """
-        checkpoint_path = (
-            "../model_artifacts/regression_model.pth"  # Ensure this path is correct.
-        )
-        checkpoint = torch.load(
-            checkpoint_path, map_location=torch.device("cpu"), weights_only=False
-        )
+# class PredictInput(BaseModel):
+#     model_tag: str
+#     input_data: Dict[str, Any]
 
-        # Initialize the model architecture with the same hyperparameters used during training.
-        model = RegressionNet(input_dim=10, hidden_dim=151, num_layers=2, dropout=0.15)
-        model.load_state_dict(checkpoint["model_state_dict"])
-        model.eval()  # Set the model to evaluation mode.
 
-        scaler = checkpoint["scaler"]
-        return model, scaler
+class PredictData(BaseModel):
+    sex: int
+    age: int
+    side: int
+    BW: float
+    Ht: float
+    BMI: float
+    IKDC_pre: float
+    Lysholm_pre: float
+    Pre_KL_grade: float
+    MM_extrusion_pre: float
+    MM_gap: float
+    Degenerative_meniscus: float
+    medial_femoral_condyle: float
+    medial_tibial_condyle: float
+    lateral_femoral_condyle: float
+    lateral_tibial_condyle: float
+
+    class Config:
+        populate_by_name = True
+
+
+class PredictInput(BaseModel):
+    model_tag: str
+    input_data: PredictData
+
+
+@bentoml.service(
+    traffic={"timeout": 30},
+    resources={"cpu": "2"},
+)
+class DynamicRegressionService:
 
     @bentoml.api
-    def predict(self, input_data) -> np.ndarray:
-        """
-        API endpoint to get predictions.
-          - `input_data` is expected to be a NumPy array (e.g., a batch of samples).
-          - The input is transformed using the previously fitted scaler.
-          - The transformed input is converted to a torch tensor and passed through the model.
-          - The model's output is returned as a NumPy array.
-        """
-        try:
-            features = [
-                input_data["sex"],
-                input_data["age"],
-                input_data["side"],
-                input_data["BW"],
-                input_data["Ht"],
-                input_data["BMI"],
-                input_data["IKDC pre"],
-                input_data["Lysholm pre"],
-                input_data["Pre KL grade"],
-                input_data["MM extrusion pre"],
-            ]
-        except KeyError as e:
-            return {"error": f"Missing field: {e.args[0]}"}
-        features_array = np.array([features])
+    async def predict(
+        self,
+        payload: PredictInput,
+    ):
+        request_id = str(uuid.uuid4())
+        with logger.contextualize(request_id=request_id):
+            try:
+                logger.info("Prediction request received")
+                # FastAPI will handle auth, this is just an extra layer
+                # if not self.validate_request(payload):
+                #     return {"error": "Unauthorized"}
 
-        # Apply the same scaling as during training.
-        transformed_input = self.scaler.transform(features_array)
-        tensor_input = torch.tensor(transformed_input, dtype=torch.float32)
+                model_tag = payload.model_tag
+                input_data = payload.input_data
 
-        with torch.no_grad():
-            output = self.model(tensor_input)
+                # Load model with caching
+                if model_tag not in model_cache:
+                    try:
+                        model = bentoml.torchscript.load_model(model_tag)
 
-        return {"prediction": output.detach().cpu().numpy().tolist()}
+                        # Access custom objects
+                        bento_model = bentoml.models.get(model_tag)
+                        scaler = bento_model.custom_objects["scaler"]
+                        print(scaler)
+                        # Set the model to evaluation mode
+                        model.eval()
+
+                        # Cache the model and scaler
+                        model_cache[model_tag] = (model, scaler)
+                    except Exception as e:
+                        return {"error": f"Model loading failed: {str(e)}"}, 500
+
+                model, scaler = model_cache[model_tag]
+
+                # Process input
+                try:
+                    features = self.extract_features2(input_data)
+                    transformed = scaler.transform([features])
+                    tensor_input = torch.tensor(transformed, dtype=torch.float32)
+
+                    with torch.no_grad():
+                        prediction = model(tensor_input).numpy().tolist()
+                    logger.info("Prediction completed", prediction=prediction)
+                    return {"prediction": prediction}, 200
+
+                except Exception as e:
+                    return {"error": f"Prediction failed: {str(e)}"}, 500
+
+            except Exception as e:
+                logger.critical("Unexpected error in prediction", error=str(e))
+                return {"error": "Internal server error"}, 500
+
+    @bentoml.api
+    async def delete_model(self, model_tag: str):
+        request_id = str(uuid.uuid4())
+        with logger.contextualize(request_id=request_id):
+            try:
+                logger.info("Delete model request received", model_tag=model_tag)
+
+                # if not check_admin():
+                #     logger.warning("Unauthorized delete attempt")
+                #     return {"error": "User not authorized"}, 403
+
+                if model_tag in model_cache:
+                    del model_cache[model_tag]
+                    logger.info("Model removed from cache")
+
+                try:
+                    bentoml.models.delete(model_tag)
+                    logger.success("Model deleted permanently")
+                    return {"status": "success"}
+                except Exception as e:
+                    logger.error("Model deletion failed", error=str(e))
+                    return {"status": "error", "message": str(e)}, 500
+
+            except Exception as e:
+                logger.critical("Unexpected error in deletion", error=str(e))
+                return {"error": "Internal server error"}, 500
+
+    @bentoml.api
+    async def delete_all_models(self):
+        request_id = str(uuid.uuid4())
+        with logger.contextualize(request_id=request_id):
+            try:
+                logger.info("Delete All model request received")
+                model_cache.clear()
+                logger.info("All models removed from cache")
+                models = bentoml.models.list()
+                for model in models:
+                    logger.success(f"Model {model.tag} deleted successfully")
+                    bentoml.models.delete(model.tag)
+            except Exception as e:
+                logger.critical("Unexpected error in deletion", error=str(e))
+                return {"error": "Internal server error"}, 500
+
+    def validate_request(self, payload: Dict) -> bool:
+        # Add any additional security checks here
+        return True  # Replace with actual validation logic
+
+    def extract_features(self, input_data: Dict) -> list:
+        return [
+            input_data["sex"],
+            input_data["age"],
+            input_data["side"],
+            input_data["BW"],
+            input_data["Ht"],
+            input_data["BMI"],
+            input_data["IKDC pre"],
+            input_data["Lysholm pre"],
+            input_data["Pre KL grade"],
+            input_data["MM extrusion pre"],
+            input_data["MM gap"],
+            input_data["Degenerative meniscus"],
+            input_data["medial femoral condyle"],
+            input_data["medial tibial condyle"],
+            input_data["lateral femoral condyle"],
+            input_data["lateral tibial condyle"],
+        ]
+
+    def extract_features2(self, input_data: PredictData) -> List[float]:
+        feature_dict = input_data.dict()
+
+        # Rename feature keys to match expected column names
+        column_name_mapping = {
+            "Pre_KL_grade": "Pre KL grade",
+            "MM_extrusion_pre": "MM extrusion pre",
+            "IKDC_pre": "IKDC pre",
+            "Lysholm_pre": "Lysholm pre",
+            "BW": "BW",  # No change needed, but listed for clarity
+            "Ht": "Ht",
+            "BMI": "BMI",
+            "sex": "sex",
+            "age": "age",
+            "side": "side",
+            "MM_gap": "MM gap",
+            "Degenerative_meniscus": "Degenerative meniscus",
+            "medial_femoral_condyle": "medial femoral condyle",
+            "medial_tibial_condyle": "medial tibial condyle",
+            "lateral_femoral_condyle": "lateral femoral condyle",
+            "lateral_tibial_condyle": "lateral tibial condyle",
+        }
+
+        # Apply mapping
+        renamed_features = {column_name_mapping[k]: v for k, v in feature_dict.items()}
+
+        # Convert to list in the correct order
+        feature_values = [renamed_features[col] for col in column_name_mapping.values()]
+
+        return feature_values
