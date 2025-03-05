@@ -1,4 +1,5 @@
 import bentoml
+import numpy as np
 from pydantic import BaseModel
 import torch
 from typing import Dict, List
@@ -154,8 +155,12 @@ class DynamicRegressionService:
 
                     with torch.no_grad():
                         prediction = model(tensor_input).numpy().tolist()
+
+                    feature_importance = self.get_feature_importance(model, scaler)
+
                     logger.info("Prediction completed", prediction=prediction)
-                    return {"prediction": prediction}, 200
+                    return {"prediction": prediction,
+                            "feature_importance": feature_importance}, 200
 
                 except Exception as e:
                     return {"error": f"Prediction failed: {str(e)}"}, 500
@@ -261,3 +266,24 @@ class DynamicRegressionService:
         feature_values = [renamed_features[col] for col in column_name_mapping.values()]
 
         return feature_values
+    
+    def get_feature_importance(self, model, scaler, feature_names=None):
+        try:
+            # Assume model architecture: model.model[0] is an nn.Linear layer
+            first_param = next(model.parameters())
+            weights = first_param.detach().cpu().numpy()
+            # Compute mean absolute weight per input feature
+            importance = np.abs(weights).mean(axis=0)
+            # Get feature names from scaler if available; otherwise, use defaults.
+            if hasattr(scaler, "feature_names_in_"):
+                feature_names = list(scaler.feature_names_in_)
+            else:
+                feature_names = ["sex", "age", "side", "BW", "Ht", "BMI", "IKDC_pre", "Lysholm_pre", "Pre_KL_grade", "MM_extrusion_pre", "MM_gap", "Degenerative_meniscus", "medial_femoral_condyle", "medial_tibial_condyle", "lateral_femoral_condyle", "lateral_tibial_condyle"]
+            feature_importance = dict(zip(feature_names, importance.tolist()))
+            sorted_idx = np.argsort(importance)[::-1]
+            sorted_features = [feature_names[i] for i in sorted_idx]
+            sorted_importance = importance[sorted_idx]
+            return {feature: float(imp) for feature, imp in zip(sorted_features, sorted_importance)}
+        except Exception as e:
+            logger.error("Failed to compute feature importance", error=str(e))
+            feature_importance = {"error": 555}
