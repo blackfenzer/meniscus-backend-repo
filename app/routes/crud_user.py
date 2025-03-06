@@ -30,6 +30,13 @@ def read_user(user_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="User not found")
     return user
 
+def is_valid_password(password: str) -> bool:
+    """Check if password is at least 8 characters long, contains at least one number and one special character."""
+    return (
+        len(password) >= 8 and
+        any(char.isdigit() for char in password) and
+        any(char in "!@#$%^&*()-_=+[]{}|;:'\",.<>?/`~" for char in password)
+    )
 
 @router.put("/{user_id}", response_model=UserUpdateSchema)
 def update_user(user_id: int, user: UserUpdateSchema, db: Session = Depends(get_db)):
@@ -40,6 +47,11 @@ def update_user(user_id: int, user: UserUpdateSchema, db: Session = Depends(get_
     for key, value in user_data.items():
         if value is not None and value != "":
             if key is "password":
+                if not is_valid_password(value):
+                    raise HTTPException(
+                        status_code=400, 
+                        detail="Password must be at least 8 characters long, contain at least one number and one special character"
+                    )
                 db_user.set_password(value)
             else:
                 setattr(db_user, key, value)
