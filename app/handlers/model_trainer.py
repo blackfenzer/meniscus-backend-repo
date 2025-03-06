@@ -620,7 +620,7 @@ def train_with_best_params(
     try:
         csv_data = BytesIO(csv_bytes)
         df = pd.read_csv(csv_data)
-        df = df.drop(columns=drop_columns)
+        df = df.drop(columns=[col for col in drop_columns if col in df.columns])
         X = df.drop(columns=[target_column]).values
         y = df[target_column].values
 
