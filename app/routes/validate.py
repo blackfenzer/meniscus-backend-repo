@@ -27,6 +27,7 @@ from app.handlers.model_trainer import (
     train_with_best_params,
 )
 from jose import JWTError, jwt
+import numpy as np
 
 router = APIRouter()
 COOKIE_NAME = "session_token"
@@ -186,7 +187,6 @@ async def model_train_endpoint(
         best_params = {
             "hidden_dim": 91,
             "num_layers": 7,
-            "dropout": 0.0,
             "lr": 0.017169731411333333,
             "batch_size": 32,
             "weight_decay": 0.0015011609548296367,
@@ -196,6 +196,20 @@ async def model_train_endpoint(
         model, train_losses, val_losses, test_metrics, predictions, targets, scaler = (
             train_with_best_params(csv_bytes, best_params)
         )
+        new_sample = np.array(
+            [[0, 62, 1, 74.5, 165.0, 27.36, 56, 80, 2, 5.20, 3.55, 1, 4, 0, 0, 0]]
+        )
+        # Scale the new sample using the same scaler from training
+        new_sample_scaled = scaler.transform(new_sample)
+        new_sample_tensor = torch.tensor(new_sample_scaled, dtype=torch.float32)
+        print("New sample tensor shape:", new_sample_scaled)
+        # Make prediction with the trained model
+        model.eval()
+        with torch.no_grad():
+            new_prediction = model(new_sample_tensor).squeeze()
+
+        print("New prediction on the sample 2:", new_prediction.cpu().numpy())
+        
         rmse = test_metrics["rmse"]
         r2 = test_metrics["r2"]
 
@@ -212,7 +226,6 @@ async def model_train_endpoint(
                     "input_dim": 16,
                     "hidden_dim": 91,
                     "num_layers": 7,
-                    "dropout": 0,
                 },
             },
             labels={"version": version, "description": description},

@@ -13,23 +13,14 @@ from jose import JWTError, jwt
 
 load_dotenv()
 
-# get secret key and hash function
-
-# Configure logging
+# Configuration and logger setup (same as before)
 ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
 LOG_LEVEL = os.getenv("LOG_LEVEL", "DEBUG" if ENVIRONMENT == "development" else "INFO")
 LOG_PATH = os.getenv("LOG_PATH", "logs/bentoml.log")
-
 SECRET_KEY = "super-secret-key-change-this"
 ALGORITHM = "HS256"
-
-# Create log directory if needed
 Path("logs").mkdir(exist_ok=True)
-
-# Remove default logger and configure Loguru
 logger.remove()
-
-# Common log format
 log_format = (
     "<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | "
     "<level>{level: <8}</level> | "
@@ -37,8 +28,6 @@ log_format = (
     "<magenta>{extra[request_id]}</magenta> - "
     "<level>{message}</level>"
 )
-
-# Development configuration
 if ENVIRONMENT == "development":
     logger.add(
         sys.stdout,
@@ -48,18 +37,19 @@ if ENVIRONMENT == "development":
         backtrace=True,
         diagnose=True,
     )
-else:  # Production configuration
+else:
     logger.add(
         LOG_PATH,
         rotation=os.getenv("LOG_ROTATION", "500 MB"),
         retention=os.getenv("LOG_RETENTION", "30 days"),
         compression=os.getenv("LOG_COMPRESSION", "zip"),
         level=LOG_LEVEL,
-        serialize=True,  # JSON format for production
+        serialize=True,
         enqueue=True,
         backtrace=True,
         diagnose=False,
     )
+
 model_cache = {}
 
 
@@ -74,11 +64,7 @@ def verify_token(token: str):
         return None
 
 
-# class PredictInput(BaseModel):
-#     model_tag: str
-#     input_data: Dict[str, Any]
-
-
+# Define Pydantic models for prediction input
 class PredictData(BaseModel):
     sex: int
     age: int
@@ -121,48 +107,44 @@ class DynamicRegressionService:
         with logger.contextualize(request_id=request_id):
             try:
                 logger.info("Prediction request received")
-                # FastAPI will handle auth, this is just an extra layer
-                # if not self.validate_request(payload):
-                #     return {"error": "Unauthorized"}
-
                 model_tag = payload.model_tag
                 input_data = payload.input_data
 
-                # Load model with caching
+                # Load model and scaler from cache if available
                 if model_tag not in model_cache:
                     try:
                         model = bentoml.torchscript.load_model(model_tag)
-
                         # Access custom objects
                         bento_model = bentoml.models.get(model_tag)
                         scaler = bento_model.custom_objects["scaler"]
-                        print(scaler)
-                        # Set the model to evaluation mode
+                        logger.info("Model and scaler loaded")
                         model.eval()
-
-                        # Cache the model and scaler
                         model_cache[model_tag] = (model, scaler)
                     except Exception as e:
                         return {"error": f"Model loading failed: {str(e)}"}, 500
 
                 model, scaler = model_cache[model_tag]
 
-                # Process input
                 try:
+                    # Extract numeric features in the correct order
                     features = self.extract_features2(input_data)
+                    # Convert features to a 2D numpy array (only numeric values, no feature names)
                     transformed = scaler.transform([features])
                     tensor_input = torch.tensor(transformed, dtype=torch.float32)
 
                     with torch.no_grad():
-                        prediction = model(tensor_input).numpy().tolist()
-
+                        prediction = model(tensor_input).squeeze()
+                    # Optionally compute feature importance (if needed)
                     feature_importance = self.get_feature_importance(model, scaler)
-
+                    prediction = prediction.cpu().numpy().tolist()  
                     logger.info("Prediction completed", prediction=prediction)
-                    return {"prediction": prediction,
-                            "feature_importance": feature_importance}, 200
+                    return {
+                        "prediction": prediction,
+                        "feature_importance": feature_importance,
+                    }, 200
 
                 except Exception as e:
+                    logger.error("Prediction failed", error=str(e))
                     return {"error": f"Prediction failed: {str(e)}"}, 500
 
             except Exception as e:
@@ -175,15 +157,9 @@ class DynamicRegressionService:
         with logger.contextualize(request_id=request_id):
             try:
                 logger.info("Delete model request received", model_tag=model_tag)
-
-                # if not check_admin():
-                #     logger.warning("Unauthorized delete attempt")
-                #     return {"error": "User not authorized"}, 403
-
                 if model_tag in model_cache:
                     del model_cache[model_tag]
                     logger.info("Model removed from cache")
-
                 try:
                     bentoml.models.delete(model_tag)
                     logger.success("Model deleted permanently")
@@ -191,7 +167,6 @@ class DynamicRegressionService:
                 except Exception as e:
                     logger.error("Model deletion failed", error=str(e))
                     return {"status": "error", "message": str(e)}, 500
-
             except Exception as e:
                 logger.critical("Unexpected error in deletion", error=str(e))
                 return {"error": "Internal server error"}, 500
@@ -212,78 +187,72 @@ class DynamicRegressionService:
                 logger.critical("Unexpected error in deletion", error=str(e))
                 return {"error": "Internal server error"}, 500
 
-    def validate_request(self, payload: Dict) -> bool:
-        # Add any additional security checks here
-        return True  # Replace with actual validation logic
-
-    def extract_features(self, input_data: Dict) -> list:
-        return [
-            input_data["sex"],
-            input_data["age"],
-            input_data["side"],
-            input_data["BW"],
-            input_data["Ht"],
-            input_data["BMI"],
-            input_data["IKDC pre"],
-            input_data["Lysholm pre"],
-            input_data["Pre KL grade"],
-            input_data["MM extrusion pre"],
-            input_data["MM gap"],
-            input_data["Degenerative meniscus"],
-            input_data["medial femoral condyle"],
-            input_data["medial tibial condyle"],
-            input_data["lateral femoral condyle"],
-            input_data["lateral tibial condyle"],
-        ]
-
     def extract_features2(self, input_data: PredictData) -> List[float]:
-        feature_dict = input_data.dict()
+        """
+        Extracts numeric features in the exact order expected by the model.
+        The expected order should match the order used when training (and fitting the scaler).
+        """
+        expected_order = [
+            "sex",
+            "age",
+            "side",
+            "BW",
+            "Ht",
+            "BMI",
+            "IKDC_pre",
+            "Lysholm_pre",
+            "Pre_KL_grade",
+            "MM_extrusion_pre",
+            "MM_gap",
+            "Degenerative_meniscus",
+            "medial_femoral_condyle",
+            "medial_tibial_condyle",
+            "lateral_femoral_condyle",
+            "lateral_tibial_condyle",
+        ]
+        data_dict = input_data.dict()
+        try:
+            features = [data_dict[feature] for feature in expected_order]
+        except KeyError as e:
+            logger.error("Missing feature in input data", missing_feature=str(e))
+            raise e
+        return features
 
-        # Rename feature keys to match expected column names
-        column_name_mapping = {
-            "Pre_KL_grade": "Pre KL grade",
-            "MM_extrusion_pre": "MM extrusion pre",
-            "IKDC_pre": "IKDC pre",
-            "Lysholm_pre": "Lysholm pre",
-            "BW": "BW",  # No change needed, but listed for clarity
-            "Ht": "Ht",
-            "BMI": "BMI",
-            "sex": "sex",
-            "age": "age",
-            "side": "side",
-            "MM_gap": "MM gap",
-            "Degenerative_meniscus": "Degenerative meniscus",
-            "medial_femoral_condyle": "medial femoral condyle",
-            "medial_tibial_condyle": "medial tibial condyle",
-            "lateral_femoral_condyle": "lateral femoral condyle",
-            "lateral_tibial_condyle": "lateral tibial condyle",
-        }
-
-        # Apply mapping
-        renamed_features = {column_name_mapping[k]: v for k, v in feature_dict.items()}
-
-        # Convert to list in the correct order
-        feature_values = [renamed_features[col] for col in column_name_mapping.values()]
-
-        return feature_values
-    
     def get_feature_importance(self, model, scaler, feature_names=None):
         try:
-            # Assume model architecture: model.model[0] is an nn.Linear layer
+            # Assume the first layer is an nn.Linear layer and extract its weights
             first_param = next(model.parameters())
             weights = first_param.detach().cpu().numpy()
-            # Compute mean absolute weight per input feature
             importance = np.abs(weights).mean(axis=0)
-            # Get feature names from scaler if available; otherwise, use defaults.
+            # If the scaler has feature names, use them; otherwise, use the expected order
             if hasattr(scaler, "feature_names_in_"):
                 feature_names = list(scaler.feature_names_in_)
             else:
-                feature_names = ["sex", "age", "side", "BW", "Ht", "BMI", "IKDC_pre", "Lysholm_pre", "Pre_KL_grade", "MM_extrusion_pre", "MM_gap", "Degenerative_meniscus", "medial_femoral_condyle", "medial_tibial_condyle", "lateral_femoral_condyle", "lateral_tibial_condyle"]
-            feature_importance = dict(zip(feature_names, importance.tolist()))
+                feature_names = [
+                    "sex",
+                    "age",
+                    "side",
+                    "BW",
+                    "Ht",
+                    "BMI",
+                    "IKDC_pre",
+                    "Lysholm_pre",
+                    "Pre_KL_grade",
+                    "MM_extrusion_pre",
+                    "MM_gap",
+                    "Degenerative_meniscus",
+                    "medial_femoral_condyle",
+                    "medial_tibial_condyle",
+                    "lateral_femoral_condyle",
+                    "lateral_tibial_condyle",
+                ]
             sorted_idx = np.argsort(importance)[::-1]
             sorted_features = [feature_names[i] for i in sorted_idx]
             sorted_importance = importance[sorted_idx]
-            return {feature: float(imp) for feature, imp in zip(sorted_features, sorted_importance)}
+            return {
+                feature: float(imp)
+                for feature, imp in zip(sorted_features, sorted_importance)
+            }
         except Exception as e:
             logger.error("Failed to compute feature importance", error=str(e))
-            feature_importance = {"error": 555}
+            return {"error": "Feature importance computation failed"}
