@@ -23,7 +23,9 @@ from app.models.schema import CSVFile, CSVData, Model
 from app.core.regression_net import RegressionNet
 from io import BytesIO, StringIO
 import csv
-from app.handlers.model_trainer import train_model_from_csv, train_model_with_kfold
+from app.handlers.model_trainer import (
+    train_with_best_params,
+)
 from jose import JWTError, jwt
 
 router = APIRouter()
@@ -180,10 +182,22 @@ async def model_train_endpoint(
         # Train model using cleaned CSV (Implement your model training here)
         # model, scaler = train_model_from_csv(csv_bytes)
 
-        #from unine
-        best_params={'hidden_dim': 91, 'num_layers': 7, 'dropout': 0.0, 'lr': 0.017169731411333333, 'batch_size': 32}
+        # from unine
+        best_params = {
+            "hidden_dim": 91,
+            "num_layers": 7,
+            "dropout": 0.0,
+            "lr": 0.017169731411333333,
+            "batch_size": 32,
+            "weight_decay": 0.0015011609548296367,
+        }
 
-        model, scaler, rmse, r2 = train_model_with_kfold(csv_bytes, best_params)
+        # model, scaler, rmse, r2 = train_model_with_kfold(csv_bytes, best_params)
+        model, train_losses, val_losses, test_metrics, predictions, targets, scaler = (
+            train_with_best_params(csv_bytes, best_params)
+        )
+        rmse = test_metrics["rmse"]
+        r2 = test_metrics["r2"]
 
         # Convert trained model to TorchScript
         scripted_model = torch.jit.script(model)
@@ -195,10 +209,10 @@ async def model_train_endpoint(
             custom_objects={
                 "scaler": scaler,
                 "config": {
-                    "input_dim": 10,
-                    "hidden_dim": 151,
-                    "num_layers": 2,
-                    "dropout": 0.15,
+                    "input_dim": 16,
+                    "hidden_dim": 91,
+                    "num_layers": 7,
+                    "dropout": 0,
                 },
             },
             labels={"version": version, "description": description},
