@@ -136,7 +136,7 @@ def noise_augmentation(df: pd.DataFrame, target_column: str) -> pd.DataFrame:
     
     # 3. Slight scaling
     for i in range(len(X)):
-        scale = np.random.uniform(0.95, 1.05, size=len(feature_names))
+        scale = np.random.uniform(0.97, 1.03, size=len(feature_names))
         synthetic_x = X.iloc[i] * scale
         synthetic_data.append(synthetic_x)
         synthetic_labels.append(y.iloc[i])
