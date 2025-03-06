@@ -220,8 +220,22 @@ async def submit_data(request: Request, current_user: User = Depends(get_current
 #     return {"message": "Data submitted successfully"}
 
 
+def is_valid_password(password: str) -> bool:
+    """Check if password is at least 8 characters long, contains at least one number and one special character."""
+    return (
+        len(password) >= 8 and
+        any(char.isdigit() for char in password) and
+        any(char in "!@#$%^&*()-_=+[]{}|;:'\",.<>?/`~" for char in password)
+    )
+
 @router.post("/register")
 def register(username: str, password: str, db: Session = Depends(get_db)):
+    if not is_valid_password(password):
+        raise HTTPException(
+            status_code=400, 
+            detail="Password must be at least 8 characters long, contain at least one number and one special character"
+        )
+
     user = db.query(User).filter(User.username == username).first()
     if user:
         raise HTTPException(status_code=400, detail="Username already exists")
