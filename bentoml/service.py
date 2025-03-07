@@ -10,6 +10,8 @@ import uuid
 from pathlib import Path
 from dotenv import load_dotenv
 from jose import JWTError, jwt
+import shap
+import pandas as pd
 
 load_dotenv()
 
@@ -128,19 +130,21 @@ class DynamicRegressionService:
                 try:
                     # Extract numeric features in the correct order
                     features = self.extract_features2(input_data)
-                    # Convert features to a 2D numpy array (only numeric values, no feature names)
+                    # Convert features to a 2D numpy array
                     transformed = scaler.transform([features])
                     tensor_input = torch.tensor(transformed, dtype=torch.float32)
 
                     with torch.no_grad():
                         prediction = model(tensor_input).squeeze()
-                    # Optionally compute feature importance (if needed)
-                    feature_importance = self.get_feature_importance(model, scaler)
-                    prediction = prediction.cpu().numpy().tolist()  
+
+                    # Replace feature importance with SHAP values
+                    shap_values = self.get_shap_values(model, scaler, features)
+
+                    prediction = prediction.cpu().numpy().tolist()
                     logger.info("Prediction completed", prediction=prediction)
                     return {
                         "prediction": prediction,
-                        "feature_importance": feature_importance,
+                        "feature_importance": shap_values,
                     }, 200
 
                 except Exception as e:
@@ -256,3 +260,78 @@ class DynamicRegressionService:
         except Exception as e:
             logger.error("Failed to compute feature importance", error=str(e))
             return {"error": "Feature importance computation failed"}
+
+    def get_shap_values(self, model, scaler, features) -> Dict[str, float]:
+        """
+        Calculate SHAP values for the given features using the provided model and scaler.
+
+        Args:
+            model: The PyTorch model
+            scaler: The scaler used to normalize features
+            features: The raw feature values
+
+        Returns:
+            Dictionary mapping feature names to their SHAP values
+        """
+        try:
+            # Create a wrapper function for the PyTorch model
+            def f(x):
+                with torch.no_grad():
+                    tensor_x = torch.tensor(x, dtype=torch.float32)
+                    return model(tensor_x).cpu().numpy()
+
+            # Create a background dataset for SHAP
+            # This is typically a sample from your training data
+            # For simplicity, we'll use a random sample around the current point
+            # In practice, you should use a representative sample from your training data
+            n_background = 100
+            feature_array = np.array(features)
+            background_data = np.random.normal(
+                loc=feature_array, scale=0.1, size=(n_background, len(feature_array))
+            )
+            background_data = scaler.transform(background_data)
+
+            # Initialize the SHAP explainer
+            explainer = shap.KernelExplainer(f, background_data)
+
+            # Calculate SHAP values for the current instance
+            transformed_features = scaler.transform([features])
+            shap_values = explainer.shap_values(transformed_features)[0]
+
+            # Map SHAP values to feature names
+            # Assuming you have a way to get feature names in the same order as features
+            feature_names = self.get_feature_names()  # Implement this method
+
+            return {
+                feature_names[i]: float(shap_values[i])
+                for i in range(len(feature_names))
+            }
+
+        except Exception as e:
+            logger.error(f"SHAP calculation failed: {str(e)}")
+            # Fall back to a simpler method or return empty dict
+            return {}
+
+    def get_feature_names(self) -> List[str]:
+
+        # Implement your logic to get feature names here
+        # This should match the order of features in extract_features2
+        feature_names = [
+            "sex",
+            "age",
+            "side",
+            "BW",
+            "Ht",
+            "BMI",
+            "IKDC_pre",
+            "Lysholm_pre",
+            "Pre_KL_grade",
+            "MM_extrusion_pre",
+            "MM_gap",
+            "Degenerative_meniscus",
+            "medial_femoral_condyle",
+            "medial_tibial_condyle",
+            "lateral_femoral_condyle",
+            "lateral_tibial_condyle",
+        ]
+        return feature_names
