@@ -17,7 +17,7 @@ from app.handlers.validate_handler import (
     convert_csv_row_ten_types,
     convert_csv_row_types,
 )
-from jose import JWTError, jwt
+from jose import jwt
 from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session
 import httpx
@@ -93,12 +93,16 @@ async def upload_model(
         raise HTTPException(500, f"Model upload failed: {str(e)}")
 
 
+SECRET_KEY = "super_secret_key"  # Store this securely, ideally in environment variables
+ALGORITHM = "HS256"
+
+
 @router.post("/{model_name}")
 async def predict(
     model_name: str,
     prediction_request: PredictionRequest,
     db: Session = Depends(get_db),
-    role: User = Depends(get_current_user),
+    user: User = Depends(get_current_user),
 ):
     # Extract data from the request
     model_tag = prediction_request.model_tag
@@ -115,6 +119,13 @@ async def predict(
     if not model:
         raise HTTPException(status_code=404, detail="Model not found or inactive")
 
+    token_data = {
+        "user_id": str(user.id),
+        "role": str(user.role),
+    }
+    secure_token = jwt.encode(token_data, SECRET_KEY, algorithm=ALGORITHM)
+    print("Secure token:", secure_token)
+
     # Forward the request to the BentoML service
     try:
         logging.basicConfig(level=logging.DEBUG)
@@ -127,9 +138,9 @@ async def predict(
                     "payload": {
                         "model_tag": model.bentoml_tag,
                         "input_data": input_data,
+                        "secure_token": secure_token,
                     },
                     "headers": {"Authorization": f"Bearer {get_token}"},
-                    "YOUR_SECURE_TOKEN": "string",
                 },
                 timeout=30,
             )
@@ -138,71 +149,87 @@ async def predict(
 
     except httpx.RequestError as e:
         raise HTTPException(
-            status_code=500, detail=f"Prediction service error: {str(e)}"
+            status_code=502, detail=f"Prediction service unavailable: {str(e)}"
         )
+    except ValueError as e:
+        raise HTTPException(
+            status_code=400, detail=f"JSON serialization error: {str(e)}"
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal error: {str(e)}")
 
 
 COOKIE_NAME = "session_token"
 
 
-@router.post("/{model_name}")
-async def predict(
-    model_name: str,
-    prediction_request: PredictionRequest,
-    request: Request,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),  # Use your existing dependency
-):
-    # Verify active user status (already handled in get_current_user)
+# @router.post("/{model_name}")
+# async def predict(
+#     model_name: str,
+#     prediction_request: PredictionRequest,
+#     request: Request,
+#     db: Session = Depends(get_db),
+#     current_user: User = Depends(get_current_user),  # Use your existing dependency
+# ):
+#     # Verify active user status (already handled in get_current_user)
 
-    # Prepare headers for BentoML
-    headers = {
-        "Cookie": f"{COOKIE_NAME}={request.cookies.get(COOKIE_NAME)}",
-        "X-CSRF-Token": request.cookies.get("csrf_token", ""),
-    }
-    model_tag = prediction_request.model_tag
-    input_data = prediction_request.input_data
-    # input_data = convert_csv_row_ten_types(input_data.values)
+#     # Prepare headers for BentoML
+#     headers = {
+#         "Cookie": f"{COOKIE_NAME}={request.cookies.get(COOKIE_NAME)}",
+#         "X-CSRF-Token": request.cookies.get("csrf_token", ""),
+#     }
+#     model_tag = prediction_request.model_tag
+#     input_data = prediction_request.input_data
+#     # input_data = convert_csv_row_ten_types(input_data.values)
 
-    # Retrieve model metadata from the database
-    model = (
-        db.query(Model)
-        .filter(Model.name == model_name, Model.is_active == True)
-        .first()
-    )
+#     # Retrieve model metadata from the database
+#     model = (
+#         db.query(Model)
+#         .filter(Model.name == model_name, Model.is_active == True)
+#         .first()
+#     )
 
-    try:
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                BENTOML_URL,
-                json={
-                    "payload": {
-                        "model_tag": model.bentoml_tag,
-                        "input_data": {
-                            "sex": input_data["sex"],
-                            "age": input_data["age"],
-                            "side": input_data["side"],
-                            "BW": input_data["BW"],
-                            "Ht": input_data["Ht"],
-                            "BMI": input_data["BMI"],
-                            "IKDC pre": input_data["IKDC_pre"],
-                            "Lysholm pre": input_data["Lysholm_pre"],
-                            "Pre KL grade": input_data["Pre_KL_grade"],
-                            "MM extrusion pre": input_data["MM_extrusion_pre"],
-                            "MM gap": input_data["MM_gap"],
-                            "Degenerative meniscus": input_data["Degenerative_meniscus"],
-                            "medial femoral condyle": input_data["medial_femoral_condyle"],
-                            "medial tibial condyle": input_data["medial_tibial_condyle"],
-                            "lateral femoral condyle": input_data["lateral_femoral_condyle"],
-                            "lateral tibial condyle": input_data["lateral_tibial_condyle"],
-                        },
-                    },
-                    "YOUR_SECURE_TOKEN": "string",
-                },
-                timeout=30,
-            )
-        response.raise_for_status()
-        return response.json()
+#     try:
+#         async with httpx.AsyncClient() as client:
+#             response = await client.post(
+#                 BENTOML_URL,
+#                 json={
+#                     "payload": {
+#                         "model_tag": model.bentoml_tag,
+#                         "input_data": {
+#                             "sex": input_data["sex"],
+#                             "age": input_data["age"],
+#                             "side": input_data["side"],
+#                             "BW": input_data["BW"],
+#                             "Ht": input_data["Ht"],
+#                             "BMI": input_data["BMI"],
+#                             "IKDC pre": input_data["IKDC_pre"],
+#                             "Lysholm pre": input_data["Lysholm_pre"],
+#                             "Pre KL grade": input_data["Pre_KL_grade"],
+#                             "MM extrusion pre": input_data["MM_extrusion_pre"],
+#                             "MM gap": input_data["MM_gap"],
+#                             "Degenerative meniscus": input_data[
+#                                 "Degenerative_meniscus"
+#                             ],
+#                             "medial femoral condyle": input_data[
+#                                 "medial_femoral_condyle"
+#                             ],
+#                             "medial tibial condyle": input_data[
+#                                 "medial_tibial_condyle"
+#                             ],
+#                             "lateral femoral condyle": input_data[
+#                                 "lateral_femoral_condyle"
+#                             ],
+#                             "lateral tibial condyle": input_data[
+#                                 "lateral_tibial_condyle"
+#                             ],
+#                         },
+#                     },
+#                     "YOUR_SECURE_TOKEN": "string",
+#                 },
+#                 timeout=30,
+#             )
+#         response.raise_for_status()
+#         return response.json()
 
-    except httpx.RequestError as e:
-        raise HTTPException(status_code=502, detail="Prediction service unavailable")
+#     except httpx.RequestError as e:
+#         raise HTTPException(status_code=502, detail="Prediction service unavailable")

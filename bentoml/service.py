@@ -1,17 +1,18 @@
 import bentoml
 import numpy as np
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 import torch
-from typing import Dict, List
+from typing import Any, Dict, List
 from loguru import logger
 import os
 import sys
 import uuid
 from pathlib import Path
 from dotenv import load_dotenv
-from jose import JWTError, jwt
 import shap
 import pandas as pd
+from jose import jwt
+from jose.exceptions import JWTError, ExpiredSignatureError
 
 load_dotenv()
 
@@ -19,7 +20,7 @@ load_dotenv()
 ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
 LOG_LEVEL = os.getenv("LOG_LEVEL", "DEBUG" if ENVIRONMENT == "development" else "INFO")
 LOG_PATH = os.getenv("LOG_PATH", "logs/bentoml.log")
-SECRET_KEY = "super-secret-key-change-this"
+SECRET_KEY = "super_secret_key"  # Store this securely, ideally in environment variables
 ALGORITHM = "HS256"
 Path("logs").mkdir(exist_ok=True)
 logger.remove()
@@ -55,17 +56,6 @@ else:
 model_cache = {}
 
 
-def verify_token(token: str):
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        role = payload.get("role")
-        if role is None:
-            return None
-        return role
-    except JWTError:
-        return None
-
-
 # Define Pydantic models for prediction input
 class PredictData(BaseModel):
     sex: int
@@ -92,6 +82,7 @@ class PredictData(BaseModel):
 class PredictInput(BaseModel):
     model_tag: str
     input_data: PredictData
+    secure_token: str
 
 
 @bentoml.service(
@@ -111,6 +102,23 @@ class DynamicRegressionService:
                 logger.info("Prediction request received")
                 model_tag = payload.model_tag
                 input_data = payload.input_data
+                print("thsi is", payload.secure_token)
+                # Verify JWT token
+                token_payload = self.verify_token(payload.secure_token)
+
+                if not token_payload:
+                    logger.warning("Authentication failed - invalid token")
+                    return {"error": "Authentication failed"}, 401
+
+                # if not self.check_authorization(token_payload):
+                #     logger.warning(
+                #         "Authorization failed",
+                #         user_id=token_payload.get("user_id"),
+                #         role=token_payload.get("role"),
+                #     )
+                #     return {"error": "Insufficient permissions"}, 403
+
+                logger.info("Authentication successful", role=token_payload.get("role"))
 
                 # Load model and scaler from cache if available
                 if model_tag not in model_cache:
@@ -335,3 +343,32 @@ class DynamicRegressionService:
             "lateral_tibial_condyle",
         ]
         return feature_names
+
+    def verify_token(self, token: str) -> Dict[str, Any]:
+        """Verify JWT token and return payload if valid"""
+        try:
+            payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+            logger.info("Token verified")
+            return payload
+        except ExpiredSignatureError:
+            logger.error("Token expired")
+            return None
+        except JWTError:
+            logger.error("Invalid token")
+            return None
+
+    def check_authorization(self, token_payload: Dict[str, Any]) -> bool:
+        """Check if the user has appropriate permissions"""
+        if not token_payload:
+            return False
+
+        # Check role-based permissions
+        role = token_payload.get("role")
+        # Implement your role-based permission logic here
+        if role == "admin":
+            return True
+        elif role == "user":
+            # Add any user-specific restrictions here
+            return True
+        else:
+            return False
