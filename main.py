@@ -18,6 +18,10 @@ from app.security.csrf_handler import CsrfProtect, csrf_protect_exception_handle
 from fastapi_csrf_protect.exceptions import CsrfProtectError
 from loguru import logger
 from dotenv import load_dotenv
+import uuid
+import traceback
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 
 load_dotenv()
 ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
@@ -26,7 +30,7 @@ LOG_PATH = os.getenv("LOG_PATH", "logs/app.log")
 # Create tables (only for development)
 Base.metadata.create_all(bind=engine)
 
-app = FastAPI()
+app = FastAPI(debug=True)
 
 # CORS Middleware
 app.add_middleware(
@@ -68,6 +72,36 @@ logger.configure(
 )
 
 
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    # Create a unique error ID
+    error_id = str(uuid.uuid4())
+
+    # Get the full traceback
+    tb_str = "".join(traceback.format_exception(type(exc), exc, exc.__traceback__))
+
+    # Log the detailed error with the unique ID and traceback
+    logger.opt(depth=1).error(f"Unhandled exception [{error_id}]: {exc}")
+    logger.opt(depth=1).error(f"Traceback [{error_id}]:\n{tb_str}")
+
+    # In development, you can return the actual error details
+    if app.debug:
+        return JSONResponse(
+            status_code=500,
+            content={"error_id": error_id, "message": str(exc), "traceback": tb_str},
+        )
+    # In production, return a clean error with reference ID
+    else:
+        return JSONResponse(
+            status_code=500,
+            content={
+                "error_id": error_id,
+                "message": "Internal Server Error. Reference ID for support: "
+                + error_id,
+            },
+        )
+
+
 @app.middleware("http")
 async def logging_middleware(request: Request, call_next):
     request_id = request.headers.get("X-Request-ID", str(uuid.uuid4()))
@@ -84,7 +118,7 @@ async def logging_middleware(request: Request, call_next):
 
         start_time = time.time()
         response = None
-        
+
         try:
             response = await call_next(request)
         except Exception as e:
@@ -109,7 +143,7 @@ async def logging_middleware(request: Request, call_next):
 # Include Routes
 # app.include_router(auth.router)
 app.include_router(auth2.router, prefix="/api/v1", tags=["auth2"])
-# app.include_router(validate.router, prefix="/api/v1", tags=["validate"])
+app.include_router(validate.router, prefix="/api/v1", tags=["validate"])
 # app.include_router(clean.router, prefix="/api/v1", tags={"clean"})
 app.include_router(torch.router, prefix="/nn", tags={"test"})
 app.include_router(crud_CSVfile.router, prefix="/api/v1/csv_files", tags=["CSV file"])

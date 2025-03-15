@@ -85,6 +85,11 @@ class PredictInput(BaseModel):
     secure_token: str
 
 
+class DeleteModelInput(BaseModel):
+    model_tag: str
+    secure_token: str
+
+
 @bentoml.service(
     traffic={"timeout": 30},
     resources={"cpu": "2"},
@@ -164,16 +169,29 @@ class DynamicRegressionService:
                 return {"error": "Internal server error"}, 500
 
     @bentoml.api
-    async def delete_model(self, model_tag: str):
+    async def delete_model(self, payload: DeleteModelInput):
         request_id = str(uuid.uuid4())
         with logger.contextualize(request_id=request_id):
             try:
-                logger.info("Delete model request received", model_tag=model_tag)
-                if model_tag in model_cache:
-                    del model_cache[model_tag]
+                # Verify JWT token
+                token_payload = self.verify_token(payload.secure_token)
+                if not token_payload:
+                    logger.warning("Authentication failed - invalid token")
+                    return {"error": "Authentication failed"}, 401
+
+                # Optionally, check for appropriate permissions:
+                # if not self.check_authorization(token_payload):
+                #     logger.warning("Authorization failed", role=token_payload.get("role"))
+                #     return {"error": "Insufficient permissions"}, 403
+
+                logger.info(
+                    "Delete model request received", model_tag=payload.model_tag
+                )
+                if payload.model_tag in model_cache:
+                    del model_cache[payload.model_tag]
                     logger.info("Model removed from cache")
                 try:
-                    bentoml.models.delete(model_tag)
+                    bentoml.models.delete(payload.model_tag)
                     logger.success("Model deleted permanently")
                     return {"status": "success"}
                 except Exception as e:
