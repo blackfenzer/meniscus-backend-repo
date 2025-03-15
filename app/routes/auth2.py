@@ -96,6 +96,25 @@ async def get_current_user(request: Request, db: Session = Depends(get_db)):
     return user
 
 
+async def protected_route(request: Request, db: Session = Depends(get_db)):
+    token = request.cookies.get(COOKIE_NAME)
+    if not token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    username = verify_token(token)
+    if not username:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+
+    user = db.query(User).filter(User.username == username).first()
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+    if not user.is_active:
+        raise HTTPException(status_code=400, detail="Inactive user")
+    if not user.role == "admin":
+        raise HTTPException(status_code=403, detail="Forbidden")
+    return user
+
+
 async def get_current_role(request: Request, db: Session = Depends(get_db)):
     token = request.cookies.get(COOKIE_NAME)
     if not token:
@@ -223,17 +242,18 @@ async def submit_data(request: Request, current_user: User = Depends(get_current
 def is_valid_password(password: str) -> bool:
     """Check if password is at least 8 characters long, contains at least one number and one special character."""
     return (
-        len(password) >= 8 and
-        any(char.isdigit() for char in password) and
-        any(char in "!@#$%^&*()-_=+[]{}|;:'\",.<>?/`~" for char in password)
+        len(password) >= 8
+        and any(char.isdigit() for char in password)
+        and any(char in "!@#$%^&*()-_=+[]{}|;:'\",.<>?/`~" for char in password)
     )
+
 
 @router.post("/register")
 def register(username: str, password: str, db: Session = Depends(get_db)):
     if not is_valid_password(password):
         raise HTTPException(
-            status_code=400, 
-            detail="Password must be at least 8 characters long, contain at least one number and one special character"
+            status_code=400,
+            detail="Password must be at least 8 characters long, contain at least one number and one special character",
         )
 
     user = db.query(User).filter(User.username == username).first()
