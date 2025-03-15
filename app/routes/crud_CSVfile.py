@@ -2,7 +2,6 @@ import os
 from fastapi import APIRouter, HTTPException, Depends, UploadFile, File
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
-from datetime import datetime
 import csv
 from io import StringIO
 from app.database.session import get_db
@@ -10,10 +9,11 @@ from app.models.schema import CSVFile, CSVData
 from app.schemas.schemas import (
     CSVFileBase,
     CSVFileListResponse,
-    CSVFileResponse,
     CSVUpdate,
+    UserSchema,
 )
 from app.handlers.validate_handler import validate_train_request_csv
+from app.routes.auth2 import get_current_user, protected_route
 
 router = APIRouter()
 
@@ -21,7 +21,9 @@ router = APIRouter()
 # Create a CSV file entry and store data
 @router.post("/upload")
 async def validate_and_upload_csv(
-    file: UploadFile = File(...), db: Session = Depends(get_db)
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    user: UserSchema = Depends(get_current_user),
 ):
     if not file.filename.endswith(".csv"):
         raise HTTPException(status_code=400, detail="File must be a CSV")
@@ -57,7 +59,10 @@ async def validate_and_upload_csv(
 
 # Read all CSV files
 @router.get("/all", response_model=CSVFileListResponse)
-async def list_csv_files(db: Session = Depends(get_db)):
+async def list_csv_files(
+    db: Session = Depends(get_db),
+    user: UserSchema = Depends(get_current_user),
+):
     csv_files = db.query(CSVFile).all()
     return {
         "files": [
@@ -74,7 +79,11 @@ async def list_csv_files(db: Session = Depends(get_db)):
 
 # Read a specific CSV file by ID
 @router.get("/{csv_file_id}", response_model=CSVFileBase)
-def read_csv_file(csv_file_id: int, db: Session = Depends(get_db)):
+def read_csv_file(
+    csv_file_id: int,
+    db: Session = Depends(get_db),
+    user: UserSchema = Depends(get_current_user),
+):
     csv_file = db.query(CSVFile).filter(CSVFile.id == csv_file_id).first()
     if not csv_file:
         raise HTTPException(status_code=404, detail="CSV file not found")
@@ -83,7 +92,12 @@ def read_csv_file(csv_file_id: int, db: Session = Depends(get_db)):
 
 # Update CSV file metadata
 @router.put("/{csv_file_id}", response_model=CSVFileBase)
-def update_csv_file(csv_file_id: int, model: CSVUpdate, db: Session = Depends(get_db)):
+def update_csv_file(
+    csv_file_id: int,
+    model: CSVUpdate,
+    db: Session = Depends(get_db),
+    user: UserSchema = Depends(protected_route),
+):
     csv_file = db.query(CSVFile).filter(CSVFile.id == csv_file_id).first()
     if not csv_file:
         raise HTTPException(status_code=404, detail="CSV file not found")
@@ -103,7 +117,11 @@ def update_csv_file(csv_file_id: int, model: CSVUpdate, db: Session = Depends(ge
 
 # Delete a CSV file entry
 @router.delete("/{csv_file_id}")
-def delete_csv_file(csv_file_id: int, db: Session = Depends(get_db)):
+def delete_csv_file(
+    csv_file_id: int,
+    db: Session = Depends(get_db),
+    user: UserSchema = Depends(protected_route),
+):
     csv_file = db.query(CSVFile).filter(CSVFile.id == csv_file_id).first()
     if not csv_file:
         raise HTTPException(status_code=404, detail="CSV file not found")
@@ -125,7 +143,11 @@ def delete_csv_file(csv_file_id: int, db: Session = Depends(get_db)):
 
 
 @router.get("/download/{csv_file_id}")
-def download_csv(csv_file_id: int, db: Session = Depends(get_db)):
+def download_csv(
+    csv_file_id: int,
+    db: Session = Depends(get_db),
+    user: UserSchema = Depends(get_current_user),
+):
     # Retrieve the CSVFile record; adjust filtering as needed
     csv_file_record = db.query(CSVFile).filter(CSVFile.id == csv_file_id).first()
     if not csv_file_record:

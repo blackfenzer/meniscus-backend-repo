@@ -6,20 +6,29 @@ from app.database.session import get_db
 from app.models.schema import Model
 import bentoml
 
-from app.routes.auth2 import protected_route
+from app.routes.auth2 import get_current_user, protected_route
 
 router = APIRouter()
 
 
 @router.get("/", response_model=list[AllModelResponse])
-def read_models(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+def read_models(
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(get_db),
+    user: UserSchema = Depends(get_current_user),
+):
     return (
         db.query(Model).filter(Model.is_active == True).offset(skip).limit(limit).all()
     )
 
 
 @router.get("/{model_name}", response_model=AllModelResponse)
-def read_model(model_name: str, db: Session = Depends(get_db)):
+def read_model(
+    model_name: str,
+    db: Session = Depends(get_db),
+    user: UserSchema = Depends(get_current_user),
+):
     model = (
         db.query(Model)
         .filter(Model.name == model_name, Model.is_active == True)
