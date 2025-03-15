@@ -210,33 +210,21 @@ async def test_auth(current_user: User = Depends(get_current_user)):
     }
 
 
-@router.post("/submit-data")
-async def submit_data(request: Request, current_user: User = Depends(get_current_user)):
-    csrf_token = request.cookies.get("csrf_token")
-    header_csrf_token = request.headers.get("X-CSRF-Token")
-    if csrf_token:
-        print(csrf_token)
-    if header_csrf_token:
-        print(header_csrf_token)
-    if not csrf_token or not header_csrf_token or csrf_token != header_csrf_token:
-        raise HTTPException(status_code=403, detail="CSRF token missing or invalid")
-
-    # data = await request.json()
-    # Process the data here
-    return {"message": "Data submitted successfully"}
-
-
 # @router.post("/submit-data")
-# async def submit_data(request: Request, user: dict = Depends(get_current_user)):
-#     csrf_token = request.cookies.get(CSRF_COOKIE_NAME)
+# async def submit_data(request: Request, current_user: User = Depends(get_current_user)):
+#     csrf_token = request.cookies.get("csrf_token")
 #     header_csrf_token = request.headers.get("X-CSRF-Token")
-
+#     if csrf_token:
+#         print(csrf_token)
+#     if header_csrf_token:
+#         print(header_csrf_token)
 #     if not csrf_token or not header_csrf_token or csrf_token != header_csrf_token:
 #         raise HTTPException(status_code=403, detail="CSRF token missing or invalid")
 
-#     data = await request.json()
+#     # data = await request.json()
 #     # Process the data here
 #     return {"message": "Data submitted successfully"}
+
 
 
 def is_valid_password(password: str) -> bool:

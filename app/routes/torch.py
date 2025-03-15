@@ -1,28 +1,21 @@
 import logging
 import os
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from app.database.session import get_db
-from app.routes.auth2 import get_token
+from app.routes.auth2 import get_token, protected_route, get_current_user
 from sqlalchemy.orm import Session
-from fastapi import APIRouter, Request, UploadFile, File, Depends, HTTPException
+from fastapi import APIRouter, UploadFile, File, Depends, HTTPException
 from io import BytesIO
 import torch
 import bentoml
 from app.models.schema import Model, User
 from app.core.regression_net import RegressionNet
-import requests
 from app.schemas.schemas import PredictRequest
-from app.handlers.validate_handler import (
-    convert_csv_row_ten_types,
-    convert_csv_row_types,
-)
 from jose import jwt
 from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session
 import httpx
 
-from app.routes.auth2 import get_current_user, get_current_role
 
 router = APIRouter()
 HOST = os.getenv("BENTOML_HOST")
@@ -41,7 +34,7 @@ async def upload_model(
     description: str,
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
-    # current_user: User = Depends(get_current_user)
+    current_user: User = Depends(protected_route),
 ):
     # Authentication check here (add your logic)
     # if (current_user.role != "user"):

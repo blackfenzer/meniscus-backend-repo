@@ -1,13 +1,14 @@
-# Add these to your FastAPI router
 from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session
 from app.schemas.schemas import AllModelResponse, AllModelUpdate, UserSchema
 from app.database.session import get_db
 from app.models.schema import Model
 import bentoml
-
+from jose import jwt
 from app.routes.auth2 import get_current_user, protected_route
 
+SECRET_KEY = "super_secret_key"  # Store this securely, ideally in environment variables
+ALGORITHM = "HS256"
 router = APIRouter()
 
 
