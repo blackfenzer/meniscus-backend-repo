@@ -20,8 +20,8 @@ load_dotenv()
 ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
 LOG_LEVEL = os.getenv("LOG_LEVEL", "DEBUG" if ENVIRONMENT == "development" else "INFO")
 LOG_PATH = os.getenv("LOG_PATH", "logs/bentoml.log")
-SECRET_KEY = "super_secret_key"  # Store this securely, ideally in environment variables
-ALGORITHM = "HS256"
+SECRET_KEY = os.getenv("SECRET_KEY")  # Store this securely, ideally in environment variables
+ALGORITHM = os.getenv("ALGORITHM")
 Path("logs").mkdir(exist_ok=True)
 logger.remove()
 log_format = (

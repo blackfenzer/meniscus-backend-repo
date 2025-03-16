@@ -33,8 +33,8 @@ from loguru import logger
 router = APIRouter()
 COOKIE_NAME = "session_token"
 CSRF_COOKIE_NAME = "csrf_token"
-SECRET_KEY = "your-secret-key-change-this"
-ALGORITHM = "HS256"
+SECRET_KEY = os.getenv("SECRET_KEY")
+ALGORITHM = os.getenv("ALGORITHM")
 
 
 def verify_token(token: str):

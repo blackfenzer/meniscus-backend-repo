@@ -10,8 +10,8 @@ from jose import jwt
 from app.routes.auth2 import get_current_user, protected_route
 from loguru import logger
 
-SECRET_KEY = "super_secret_key"  # Store this securely, ideally in environment variables
-ALGORITHM = "HS256"
+SECRET_KEY = os.getenv("SECRET_KEY") # Store this securely, ideally in environment variables
+ALGORITHM = os.getenv("ALGORITHM")
 router = APIRouter()
 HOST = os.getenv("BENTOML_HOST")
 BENTOML_URL = os.getenv(f"{HOST}/delete_model", "http://localhost:5010/delete_model")

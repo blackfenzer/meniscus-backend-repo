@@ -9,7 +9,7 @@ load_dotenv()
 SECRET_KEY = os.getenv("NEXTAUTH_SECRET")
 nextauth_jwt = NextAuthJWT(secret=SECRET_KEY)
 # SECRET_KEY = settings.SECRET_KEY
-ALGORITHM = "HS256"
+ALGORITHM = os.getenv("ALGORITHM")
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 30
 ACCESS_TOKEN_VALID_MINUTES = 1
 

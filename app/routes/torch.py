@@ -87,8 +87,8 @@ async def upload_model(
         raise HTTPException(500, f"Model upload failed: {str(e)}")
 
 
-SECRET_KEY = "super_secret_key"  # Store this securely, ideally in environment variables
-ALGORITHM = "HS256"
+SECRET_KEY = os.getenv("SECRET_KEY")  # Store this securely, ideally in environment variables
+ALGORITHM = os.getenv("ALGORITHM")
 
 
 @router.post("/{model_name}")

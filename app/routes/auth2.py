@@ -1,3 +1,4 @@
+import os
 from fastapi import APIRouter, FastAPI, Depends, Response, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordBearer
@@ -14,13 +15,13 @@ router = APIRouter()
 # security = HTTPBearer()
 
 # Secret keys for signing cookies & CSRF tokens
-SECRET_KEY = "super-secret-key-change-this"
+SECRET_KEY = os.getenv("SECRET_KEY")
 CSRF_SECRET = "csrf-secret-key-change-this"
 COOKIE_NAME = "session_token"
 CSRF_COOKIE_NAME = "csrf_token"
 
-SECRET_KEY = "your-secret-key-change-this"  # Use environment variable in production
-ALGORITHM = "HS256"
+SECRET_KEY = os.getenv("SECRET_KEY")  # Use environment variable in production
+ALGORITHM = os.getenv("ALGORITHM")
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 # Serializer for signed cookies
 serializer = URLSafeTimedSerializer(SECRET_KEY)
