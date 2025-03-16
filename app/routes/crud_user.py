@@ -7,6 +7,7 @@ from app.schemas.schemas import (
     UserUpdateSchema,
 )
 from app.routes.auth2 import get_current_user, protected_route
+from loguru import logger
 
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 30
 router = APIRouter()
@@ -75,6 +76,7 @@ def update_user(
         db.refresh(db_user)
     except Exception as e:
         db.rollback()
+        logger.error(f"Internal error: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
     return db_user
 

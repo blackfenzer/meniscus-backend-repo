@@ -65,6 +65,7 @@ def update_model(
         db.refresh(db_model)
     except Exception as e:
         db.rollback()
+        logger.error(f"Internal error: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
     return db_model
 
@@ -106,10 +107,12 @@ async def delete_model(
             )
         response.raise_for_status()
     except httpx.RequestError as e:
+        logger.error(f"Internal error: {str(e)}")
         raise HTTPException(
             status_code=502, detail=f"Prediction service unavailable: {str(e)}"
         )
     except ValueError as e:
+        logger.error(f"Internal error: {str(e)}")
         raise HTTPException(
             status_code=400, detail=f"JSON serialization error: {str(e)}"
         )
@@ -123,6 +126,7 @@ async def delete_model(
         db.commit()
     except Exception as e:
         db.rollback()
+        logger.error(f"Internal error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Database update failed: {str(e)}")
 
     return {"message": "Model deleted successfully"}

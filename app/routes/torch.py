@@ -15,7 +15,7 @@ from jose import jwt
 from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session
 import httpx
-
+from loguru import logger
 
 router = APIRouter()
 HOST = os.getenv("BENTOML_HOST")
@@ -83,6 +83,7 @@ async def upload_model(
         return {"status": "success", "bentoml_tag": str(bento_model.tag)}
 
     except Exception as e:
+        logger.error(f"Internal error: {str(e)}")
         raise HTTPException(500, f"Model upload failed: {str(e)}")
 
 
@@ -141,14 +142,17 @@ async def predict(
         return response.json()
 
     except httpx.RequestError as e:
+        logger.error(f"Internal error: {str(e)}")
         raise HTTPException(
             status_code=502, detail=f"Prediction service unavailable: {str(e)}"
         )
     except ValueError as e:
+        logger.error(f"Internal error: {str(e)}")
         raise HTTPException(
             status_code=400, detail=f"JSON serialization error: {str(e)}"
         )
     except Exception as e:
+        logger.error(f"Internal error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Internal error: {str(e)}")
 
 

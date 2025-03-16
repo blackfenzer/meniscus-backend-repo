@@ -28,6 +28,7 @@ from app.handlers.model_trainer import (
 )
 from jose import JWTError, jwt
 import numpy as np
+from loguru import logger
 
 router = APIRouter()
 COOKIE_NAME = "session_token"
@@ -250,6 +251,7 @@ async def model_train_endpoint(
         return {"status": "success", "bentoml_tag": str(bento_model.tag)}
 
     except Exception as e:
+        logger.error(f"Internal error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error processing CSV: {str(e)}")
 
 

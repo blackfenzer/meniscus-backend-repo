@@ -14,6 +14,7 @@ from app.schemas.schemas import (
 )
 from app.handlers.validate_handler import validate_train_request_csv
 from app.routes.auth2 import get_current_user, protected_route
+from loguru import logger
 
 router = APIRouter()
 
@@ -52,8 +53,8 @@ async def validate_and_upload_csv(
     except HTTPException:
         raise
     except Exception as e:
-
         db.rollback()
+        logger.error(f"Internal error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error processing CSV: {str(e)}")
 
 
@@ -112,6 +113,7 @@ def update_csv_file(
         return csv_file
     except Exception as e:
         db.rollback()
+        logger.error(f"Internal error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Database update failed: {str(e)}")
 
 
@@ -135,6 +137,7 @@ def delete_csv_file(
         db.commit()
     except Exception as e:
         db.rollback()
+        logger.error(f"Internal error: {str(e)}")
         raise HTTPException(
             status_code=500, detail=f"Database deletion failed: {str(e)}"
         )

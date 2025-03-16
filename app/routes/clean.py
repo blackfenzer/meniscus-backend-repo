@@ -4,9 +4,9 @@ from requests import Session
 from app.handlers.clean_handler import clean_train_request_csv
 from app.database.session import get_db
 from app.models.schema import CSVFile
+from loguru import logger
 
-
-router = APIRouter();
+router = APIRouter()
 
 
 @router.post("/clean-and-upload")
@@ -34,4 +34,5 @@ async def clean_and_upload_csv(
         raise
     except Exception as e:
         db.rollback()
+        logger.error(f"Internal error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error processing CSV: {str(e)}")

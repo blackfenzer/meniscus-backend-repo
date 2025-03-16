@@ -55,7 +55,7 @@ def verify_token(token: str):
         if username is None:
             return None
         return username
-    except JWTError:
+    except JWTError as e:
         return None
 
 
