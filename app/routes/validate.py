@@ -31,8 +31,8 @@ import numpy as np
 from loguru import logger
 
 router = APIRouter()
-COOKIE_NAME = "session_token"
-CSRF_COOKIE_NAME = "csrf_token"
+COOKIE_NAME = os.getenv("COOKIE_NAME")
+CSRF_COOKIE_NAME = os.getenv("CSRF_COOKIE_NAME")
 SECRET_KEY = os.getenv("SECRET_KEY")
 ALGORITHM = os.getenv("ALGORITHM")
 

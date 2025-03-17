@@ -16,9 +16,9 @@ router = APIRouter()
 
 # Secret keys for signing cookies & CSRF tokens
 SECRET_KEY = os.getenv("SECRET_KEY")
-CSRF_SECRET = "csrf-secret-key-change-this"
-COOKIE_NAME = "session_token"
-CSRF_COOKIE_NAME = "csrf_token"
+CSRF_SECRET = os.getenv("CSRF_SECRET")
+COOKIE_NAME = os.getenv("COOKIE_NAME")
+CSRF_COOKIE_NAME = os.getenv("CSRF_COOKIE_NAME")
 
 SECRET_KEY = os.getenv("SECRET_KEY")  # Use environment variable in production
 ALGORITHM = os.getenv("ALGORITHM")
