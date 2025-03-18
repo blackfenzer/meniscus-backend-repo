@@ -1,5 +1,7 @@
+import base64
 import os
 from fastapi.responses import StreamingResponse
+import httpx
 import torch
 import bentoml
 from fastapi import APIRouter, Depends, UploadFile, File, HTTPException, Request
@@ -150,11 +152,9 @@ async def get_current_user(request: Request, db: Session = Depends(get_db)):
 #         ]
 #     }
 
+HOST = os.getenv("BENTOML_HOST")
+BENTOML_URL = os.getenv(f"{HOST}/train_model", "http://localhost:5010/train_model")
 
-## TODO get csv file
-
-
-## TODO train model and upload model
 @router.post("/model_train")
 async def model_train_endpoint(
     name: str,
@@ -162,6 +162,7 @@ async def model_train_endpoint(
     description: str,
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
 ):
 
     if not file.filename.endswith(".csv"):
@@ -183,63 +184,55 @@ async def model_train_endpoint(
         await file.seek(0)
         csv_bytes = await file.read()
 
-        # Train model using cleaned CSV (Implement your model training here)
-        # model, scaler = train_model_from_csv(csv_bytes)
-
-        # from unine
-        model_params = {"hidden_dim": 251, "num_layers": 8, "dropout": 0.1}
-        optimizer_params = {"lr": 0.01905, "weight_decay": 0.01754}
-
-        # model, scaler, rmse, r2 = train_model_with_kfold(csv_bytes, best_params)
-        model, train_losses, val_losses, test_metrics, predictions, targets, scaler = (
-            train_pipeline_regression(
-                csv_bytes,
-                model_params,
-                optimizer_params,
-                32,
-                100,
+        csv_base64 = base64.b64encode(csv_bytes).decode("utf-8")
+        
+        token_data = {
+        "user_id": str(user.id),
+        "role": str(user.role),
+        }
+        secure_token = jwt.encode(token_data, SECRET_KEY, algorithm=ALGORITHM)
+        
+        payload = {
+            "name": name,
+            "version": version,
+            "description": description,
+            "csv_bytes": csv_base64,
+            "model_params": {"hidden_dim": 251, "num_layers": 8, "dropout": 0.1},
+            "optimizer_params": {"lr": 0.01905, "weight_decay": 0.01754},
+            "batch_size": 32,
+            "epochs": 100,
+            "secure_token": secure_token,  # Pass your secure token here
+        }
+        
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                f"{BENTOML_URL}",
+                json={"payload": payload},
+                timeout=30,
             )
-        )
 
-        rmse = test_metrics["rmse"]
-        r2 = test_metrics["r2"]
+        if response.status_code != 200:
+            raise HTTPException(status_code=response.status_code, detail=f"BentoML service error: {response.text}")
 
-        # Convert trained model to TorchScript
-        scripted_model = torch.jit.script(model)
-
-        # Save model to BentoML
-        bento_model = bentoml.torchscript.save_model(
-            name,
-            scripted_model,
-            custom_objects={
-                "scaler": scaler,
-                "config": {
-                    "input_dim": 11,
-                    "hidden_dim": model_params["hidden_dim"],
-                    "num_layers": model_params["num_layers"],
-                    "dropout": model_params["dropout"],
-                },
-            },
-            labels={"version": version, "description": description},
-        )
+        bentoml_response = response.json()
 
         # Save model record in DB
         db_model = Model(
             name=name,
             model_architecture="RegressionNet",
             model_path=file.filename,
-            bentoml_tag=str(bento_model.tag),
+            bentoml_tag=bentoml_response["bentoml_tag"],
             is_active=True,
-            csv_id=csv_record.id,  # Store CSV ID
+            csv_id=csv_record.id,
             version=version,
             description=description,
-            final_loss=rmse,
-            r2=r2,
+            final_loss=bentoml_response.get("rmse"),
+            r2=bentoml_response.get("r2"),
         )
         db.add(db_model)
         db.commit()
 
-        return {"status": "success", "bentoml_tag": str(bento_model.tag)}
+        return {"status": "success", "bentoml_tag": bentoml_response["bentoml_tag"]}
 
     except Exception as e:
         logger.error(f"Internal error: {str(e)}")
