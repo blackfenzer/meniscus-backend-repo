@@ -8,10 +8,7 @@ from sklearn.model_selection import train_test_split, StratifiedKFold
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 import random
-import joblib
 import smogn
-import matplotlib.pyplot as plt
-import shap
 
 SEED = 7
 random.seed(SEED)
