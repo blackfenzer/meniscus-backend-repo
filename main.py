@@ -145,7 +145,7 @@ async def logging_middleware(request: Request, call_next):
 app.include_router(auth2.router, prefix="/api/v1", tags=["auth2"])
 app.include_router(validate.router, prefix="/api/v1", tags=["validate"])
 # app.include_router(clean.router, prefix="/api/v1", tags={"clean"})
-app.include_router(torch.router, prefix="/nn", tags={"test"})
+app.include_router(torch.router, prefix="/api/v1/nn", tags={"test"})
 app.include_router(crud_CSVfile.router, prefix="/api/v1/csv_files", tags=["CSV file"])
 app.include_router(crud_model.router, prefix="/api/v1/model", tags=["model"])
 app.include_router(crud_user.router, prefix="/api/v1/users", tags=["user"])

@@ -19,8 +19,7 @@ from loguru import logger
 
 router = APIRouter()
 HOST = os.getenv("BENTOML_HOST")
-BENTOML_URL = os.getenv(f"{HOST}/predict", "http://localhost:5010/predict")
-
+BENTOML_URL = f"{HOST}predict"
 
 class PredictionRequest(BaseModel):
     model_tag: str

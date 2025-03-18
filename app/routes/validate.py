@@ -32,8 +32,6 @@ from jose import JWTError, jwt
 import numpy as np
 from loguru import logger
 
-from app.handlers.train_fold import train_pipeline_regression
-
 router = APIRouter()
 COOKIE_NAME = os.getenv("COOKIE_NAME")
 CSRF_COOKIE_NAME = os.getenv("CSRF_COOKIE_NAME")
@@ -153,7 +151,7 @@ async def get_current_user(request: Request, db: Session = Depends(get_db)):
 #     }
 
 HOST = os.getenv("BENTOML_HOST")
-BENTOML_URL = os.getenv(f"{HOST}/train_model", "http://localhost:5010/train_model")
+BENTOML_URL = f"{HOST}train_model"
 
 @router.post("/model_train")
 async def model_train_endpoint(
@@ -167,6 +165,8 @@ async def model_train_endpoint(
 
     if not file.filename.endswith(".csv"):
         raise HTTPException(status_code=400, detail="File must be a CSV")
+    logger.error(f"Host: {HOST}")
+    logger.error(f"Bentoml URL: {BENTOML_URL}")
 
     try:
         # Read CSV content as string
@@ -210,7 +210,7 @@ async def model_train_endpoint(
                 json={"payload": payload},
                 timeout=30,
             )
-
+        logger.error(f"Bentoml URL: {BENTOML_URL}")
         if response.status_code != 200:
             raise HTTPException(status_code=response.status_code, detail=f"BentoML service error: {response.text}")
 

@@ -42,7 +42,6 @@ class PredictRequest(BaseModel):
     side: int
     BW: float
     Ht: float
-    BMI: float
     IKDC_pre: float = Field(..., alias="IKDC pre")
     Lysholm_pre: float = Field(..., alias="Lysholm pre")
     Pre_KL_grade: float = Field(..., alias="Pre KL grade")
@@ -52,7 +51,6 @@ class PredictRequest(BaseModel):
     medial_femoral_condyle: float = Field(..., alias="medial femoral condyle")
     medial_tibial_condyle: float = Field(..., alias="medial tibial condyle")
     lateral_femoral_condyle: float = Field(..., alias="lateral femoral condyle")
-    lateral_tibial_condyle: float = Field(..., alias="lateral tibial condyle")
 
 
 class TrainRequest(BaseModel):

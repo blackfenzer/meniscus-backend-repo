@@ -66,7 +66,6 @@ class PredictData(BaseModel):
     side: int
     BW: float
     Ht: float
-    BMI: float
     IKDC_pre: float
     Lysholm_pre: float
     Pre_KL_grade: float
@@ -76,7 +75,6 @@ class PredictData(BaseModel):
     medial_femoral_condyle: float
     medial_tibial_condyle: float
     lateral_femoral_condyle: float
-    lateral_tibial_condyle: float
 
     class Config:
         populate_by_name = True
@@ -352,7 +350,6 @@ class DynamicRegressionService:
             "side",
             "BW",
             "Ht",
-            "BMI",
             "IKDC_pre",
             "Lysholm_pre",
             "Pre_KL_grade",
@@ -362,7 +359,6 @@ class DynamicRegressionService:
             "medial_femoral_condyle",
             "medial_tibial_condyle",
             "lateral_femoral_condyle",
-            "lateral_tibial_condyle",
         ]
         data_dict = input_data.dict()
         try:
@@ -388,7 +384,6 @@ class DynamicRegressionService:
                     "side",
                     "BW",
                     "Ht",
-                    "BMI",
                     "IKDC_pre",
                     "Lysholm_pre",
                     "Pre_KL_grade",
@@ -398,7 +393,6 @@ class DynamicRegressionService:
                     "medial_femoral_condyle",
                     "medial_tibial_condyle",
                     "lateral_femoral_condyle",
-                    "lateral_tibial_condyle",
                 ]
             sorted_idx = np.argsort(importance)[::-1]
             sorted_features = [feature_names[i] for i in sorted_idx]
@@ -472,7 +466,6 @@ class DynamicRegressionService:
             "side",
             "BW",
             "Ht",
-            "BMI",
             "IKDC_pre",
             "Lysholm_pre",
             "Pre_KL_grade",
@@ -482,7 +475,6 @@ class DynamicRegressionService:
             "medial_femoral_condyle",
             "medial_tibial_condyle",
             "lateral_femoral_condyle",
-            "lateral_tibial_condyle",
         ]
         return feature_names
 

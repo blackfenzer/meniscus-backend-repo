@@ -2,12 +2,6 @@ FROM python:3.12.3-slim
 
 WORKDIR /app
 
-# Install additional dependencies
-RUN pip install --no-cache-dir numpy pandas torch pydantic loguru python-dotenv shap python-jose
-
-# Copy your BentoML service file
-COPY service.py .
-
 # Copy any additional files if needed
 # COPY additional_files/ .
 # Install system dependencies
@@ -25,3 +19,5 @@ EXPOSE 3000
 # Command to serve your BentoML service.
 # Replace "Service:svc" with your actual service reference.
 CMD ["bentoml", "serve", "service:DynamicRegressionService", "--production"]
+# CMD ["bentoml", "serve", "service:DynamicRegressionService", "--production", "--host", "0.0.0.0"]
+
