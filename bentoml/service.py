@@ -19,7 +19,9 @@ load_dotenv()
 ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
 LOG_LEVEL = os.getenv("LOG_LEVEL", "DEBUG" if ENVIRONMENT == "development" else "INFO")
 LOG_PATH = os.getenv("LOG_PATH", "logs/bentoml.log")
-SECRET_KEY = os.getenv("SECRET_KEY")  # Store this securely, ideally in environment variables
+SECRET_KEY = os.getenv(
+    "SECRET_KEY"
+)  # Store this securely, ideally in environment variables
 ALGORITHM = os.getenv("ALGORITHM")
 Path("logs").mkdir(exist_ok=True)
 logger.remove()
@@ -214,6 +216,48 @@ class DynamicRegressionService:
                     bentoml.models.delete(model.tag)
             except Exception as e:
                 logger.critical("Unexpected error in deletion", error=str(e))
+                return {"error": "Internal server error"}, 500
+
+    @bentoml.api
+    async def get_all_models(self):
+        request_id = str(uuid.uuid4())
+        with logger.contextualize(request_id=request_id):
+            try:
+                # Verify JWT token
+                # token_payload = self.verify_token(secure_token)
+                # if not token_payload:
+                #     logger.warning("Authentication failed - invalid token")
+                #     return {"error": "Authentication failed"}, 401
+
+                logger.info("Get all models request received")
+
+                try:
+                    # Get list of all models from BentoML store
+                    models_list = bentoml.models.list()
+
+                    # Format the response with relevant model information
+                    models_info = []
+                    for model in models_list:
+                        model_info = {
+                            "tag": str(model.tag),
+                            "module": model.info.module,
+                            "creation_time": model.info.creation_time.isoformat(),
+                        }
+
+                        # Check if model is in cache
+                        model_info["in_memory_cache"] = str(model.tag) in model_cache
+
+                        models_info.append(model_info)
+
+                    logger.success(f"Retrieved {len(models_info)} models successfully")
+                    return {"models": models_info}, 200
+
+                except Exception as e:
+                    logger.error("Failed to retrieve models", error=str(e))
+                    return {"error": f"Failed to retrieve models: {str(e)}"}, 500
+
+            except Exception as e:
+                logger.critical("Unexpected error in get_all_models", error=str(e))
                 return {"error": "Internal server error"}, 500
 
     def extract_features2(self, input_data: PredictData) -> List[float]:
