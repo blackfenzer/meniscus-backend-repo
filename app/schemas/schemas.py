@@ -208,15 +208,15 @@ class AllModelResponse(BaseModel):
     id: int
     name: str
     model_architecture: str
-    final_loss: float | None
-    r2: float | None
+    final_loss: Optional[float]
+    r2: Optional[float]
     model_path: str
     bentoml_tag: str
     is_active: bool
     created_at: datetime
-    csv_id: int | None
-    version: str | None
-    description: str | None
+    csv_id: Optional[int]
+    version: Optional[str]
+    description: Optional[str]
 
 
 class AllModelUpdate(BaseModel):
