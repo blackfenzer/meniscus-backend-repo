@@ -1,0 +1,6 @@
+venv/
+sql_app.db
+temp_cleaned_model.csv
+bentoml/
+model_artifacts/
+

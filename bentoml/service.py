@@ -1,6 +1,6 @@
 import bentoml
 import numpy as np
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 import torch
 from typing import Any, Dict, List
 from loguru import logger
@@ -10,7 +10,6 @@ import uuid
 from pathlib import Path
 from dotenv import load_dotenv
 import shap
-import pandas as pd
 from jose import jwt
 from jose.exceptions import JWTError, ExpiredSignatureError
 
