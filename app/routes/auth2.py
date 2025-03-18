@@ -3,6 +3,7 @@ from fastapi import APIRouter, FastAPI, Depends, Response, Request, HTTPExceptio
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordBearer
 from itsdangerous import URLSafeTimedSerializer, BadSignature
+from pydantic import BaseModel
 from starlette.responses import JSONResponse
 from datetime import timedelta, datetime
 import secrets
@@ -16,9 +17,9 @@ router = APIRouter()
 
 # Secret keys for signing cookies & CSRF tokens
 SECRET_KEY = os.getenv("SECRET_KEY")
-CSRF_SECRET = "csrf-secret-key-change-this"
-COOKIE_NAME = "session_token"
-CSRF_COOKIE_NAME = "csrf_token"
+CSRF_SECRET = os.getenv("CSRF_SECRET")
+COOKIE_NAME = os.getenv("COOKIE_NAME")
+CSRF_COOKIE_NAME = os.getenv("CSRF_COOKIE_NAME")
 
 SECRET_KEY = os.getenv("SECRET_KEY")  # Use environment variable in production
 ALGORITHM = os.getenv("ALGORITHM")
@@ -39,6 +40,16 @@ origins = {
 # }
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+
+class RegisterRequest(BaseModel):
+    username: str
+    password: str
 
 
 # Utility functions
@@ -156,10 +167,10 @@ async def check_admin():
 # Routes
 @router.post("/login")
 async def login(
-    response: Response, username: str, password: str, db: Session = Depends(get_db)
+    request: LoginRequest, response: Response, db: Session = Depends(get_db)
 ):
-    user = db.query(User).filter(User.username == username).first()
-    if not user or not user.check_password(password):
+    user = db.query(User).filter(User.username == request.username).first()
+    if not user or not user.check_password(request.password):
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
     # Create access token
@@ -227,7 +238,6 @@ async def test_auth(current_user: User = Depends(get_current_user)):
 #     return {"message": "Data submitted successfully"}
 
 
-
 def is_valid_password(password: str) -> bool:
     """Check if password is at least 8 characters long, contains at least one number and one special character."""
     return (
@@ -238,19 +248,19 @@ def is_valid_password(password: str) -> bool:
 
 
 @router.post("/register")
-def register(username: str, password: str, db: Session = Depends(get_db)):
-    if not is_valid_password(password):
+def register(request: RegisterRequest, db: Session = Depends(get_db)):
+    if not is_valid_password(request.password):
         raise HTTPException(
             status_code=400,
             detail="Password must be at least 8 characters long, contain at least one number and one special character",
         )
 
-    user = db.query(User).filter(User.username == username).first()
+    user = db.query(User).filter(User.username == request.username).first()
     if user:
         raise HTTPException(status_code=400, detail="Username already exists")
 
-    new_user = User(username=username, role="user")
-    new_user.set_password(password)  # Hash the password
+    new_user = User(username=request.username, role="user")
+    new_user.set_password(request.password)  # Hash the password
     db.add(new_user)
     db.commit()
 

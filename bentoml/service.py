@@ -1,6 +1,7 @@
+import base64
 import bentoml
 import numpy as np
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 import torch
 from typing import Any, Dict, List
 from loguru import logger
@@ -10,9 +11,9 @@ import uuid
 from pathlib import Path
 from dotenv import load_dotenv
 import shap
-import pandas as pd
 from jose import jwt
 from jose.exceptions import JWTError, ExpiredSignatureError
+from train_handler import train_pipeline_regression
 
 load_dotenv()
 
@@ -20,7 +21,9 @@ load_dotenv()
 ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
 LOG_LEVEL = os.getenv("LOG_LEVEL", "DEBUG" if ENVIRONMENT == "development" else "INFO")
 LOG_PATH = os.getenv("LOG_PATH", "logs/bentoml.log")
-SECRET_KEY = os.getenv("SECRET_KEY")  # Store this securely, ideally in environment variables
+SECRET_KEY = os.getenv(
+    "SECRET_KEY"
+)  # Store this securely, ideally in environment variables
 ALGORITHM = os.getenv("ALGORITHM")
 Path("logs").mkdir(exist_ok=True)
 logger.remove()
@@ -87,6 +90,18 @@ class PredictInput(BaseModel):
 
 class DeleteModelInput(BaseModel):
     model_tag: str
+    secure_token: str
+
+
+class TrainModelInput(BaseModel):
+    name: str
+    version: str
+    description: str
+    csv_bytes: str  # base64 encoded CSV content
+    model_params: Dict[str, Any]
+    optimizer_params: Dict[str, Any]
+    batch_size: int
+    epochs: int
     secure_token: str
 
 
@@ -216,6 +231,115 @@ class DynamicRegressionService:
             except Exception as e:
                 logger.critical("Unexpected error in deletion", error=str(e))
                 return {"error": "Internal server error"}, 500
+
+    @bentoml.api
+    async def get_all_models(self):
+        request_id = str(uuid.uuid4())
+        with logger.contextualize(request_id=request_id):
+            try:
+                # Verify JWT token
+                # token_payload = self.verify_token(secure_token)
+                # if not token_payload:
+                #     logger.warning("Authentication failed - invalid token")
+                #     return {"error": "Authentication failed"}, 401
+
+                logger.info("Get all models request received")
+
+                try:
+                    # Get list of all models from BentoML store
+                    models_list = bentoml.models.list()
+
+                    # Format the response with relevant model information
+                    models_info = []
+                    for model in models_list:
+                        model_info = {
+                            "tag": str(model.tag),
+                            "module": model.info.module,
+                            "creation_time": model.info.creation_time.isoformat(),
+                        }
+
+                        # Check if model is in cache
+                        model_info["in_memory_cache"] = str(model.tag) in model_cache
+
+                        models_info.append(model_info)
+
+                    logger.success(f"Retrieved {len(models_info)} models successfully")
+                    return {"models": models_info}, 200
+
+                except Exception as e:
+                    logger.error("Failed to retrieve models", error=str(e))
+                    return {"error": f"Failed to retrieve models: {str(e)}"}, 500
+
+            except Exception as e:
+                logger.critical("Unexpected error in get_all_models", error=str(e))
+                return {"error": "Internal server error"}, 500
+
+    @bentoml.api
+    async def train_model(self, payload: TrainModelInput):
+        # Verify token
+        token_payload = self.verify_token(payload.secure_token)
+        if not token_payload:
+            logger.warning("Authentication failed - invalid token")
+            return {"error": "Authentication failed"}, 401
+
+        # Decode the CSV bytes
+        try:
+            csv_bytes = base64.b64decode(payload.csv_bytes)
+        except Exception as e:
+            logger.error(f"CSV decoding error: {str(e)}")
+            return {"error": f"Failed to decode CSV bytes: {str(e)}"}, 400
+
+        try:
+            # Call your training pipeline (this function should match your training logic)
+            (
+                model,
+                train_losses,
+                val_losses,
+                test_metrics,
+                predictions,
+                targets,
+                scaler,
+                input_dim,
+            ) = train_pipeline_regression(
+                csv_bytes,
+                payload.model_params,
+                payload.optimizer_params,
+                payload.batch_size,
+                payload.epochs,
+            )
+            rmse = test_metrics["rmse"]
+            r2 = test_metrics["r2"]
+        except Exception as e:
+            logger.error(f"Training failed: {str(e)}")
+            return {"error": f"Training failed: {str(e)}"}, 500
+
+        try:
+            # Convert model to TorchScript and save with BentoML
+            scripted_model = torch.jit.script(model)
+            bento_model = bentoml.torchscript.save_model(
+                payload.name,
+                scripted_model,
+                custom_objects={
+                    "scaler": scaler,
+                    "config": {
+                        "input_dim": input_dim,  # Adjust as needed
+                        "hidden_dim": payload.model_params.get("hidden_dim"),
+                        "num_layers": payload.model_params.get("num_layers"),
+                        "dropout": payload.model_params.get("dropout"),
+                    },
+                },
+                labels={"version": payload.version, "description": payload.description},
+            )
+        except Exception as e:
+            logger.error(f"Model saving failed: {str(e)}")
+            return {"error": f"Model saving failed: {str(e)}"}, 500
+        logger.success("Model training and saving successful")
+        return {
+            "status": "success",
+            "bentoml_tag": str(bento_model.tag),
+            "rmse": rmse,
+            "r2": r2,
+        }
 
     def extract_features2(self, input_data: PredictData) -> List[float]:
         """

@@ -156,7 +156,7 @@ async def predict(
         raise HTTPException(status_code=500, detail=f"Internal error: {str(e)}")
 
 
-COOKIE_NAME = "session_token"
+COOKIE_NAME = os.getenv("COOKIE_NAME")
 
 
 # @router.post("/{model_name}")

@@ -15,6 +15,8 @@ python:
     - python-jose==3.3.0
     - torch==2.6.0
     - python-dotenv==1.0.1
+    - shap==0.47.0
+    - python-jose==3.3.0
 docker:
   distro: debian
   python_version: "3.12"
