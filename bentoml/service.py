@@ -105,7 +105,7 @@ class TrainModelInput(BaseModel):
 
 @bentoml.service(
     traffic={"timeout": 30},
-    resources={"cpu": "2"},
+    resources={"cpu": "1"},
 )
 class DynamicRegressionService:
 
