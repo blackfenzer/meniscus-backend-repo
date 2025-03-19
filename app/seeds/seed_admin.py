@@ -1,4 +1,3 @@
-# seed_admin.py
 import os
 from app.database.session import SessionLocal
 from app.models.schema import (

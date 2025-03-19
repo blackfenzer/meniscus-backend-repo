@@ -1,5 +1,4 @@
 from pydantic import BaseModel, Field
-from pydantic import ConfigDict
 from typing import List, Optional
 from datetime import datetime
 
@@ -100,49 +99,6 @@ class ModelResponse(BaseModel):
     status: str
     accuracy: Optional[float] = None
     message: Optional[str] = None
-
-
-class DataEntry(BaseModel):
-    sex: Optional[int]
-    age: Optional[int]
-    side: Optional[float]
-    BW: Optional[float]
-    Ht: Optional[float]
-    BMI: Optional[float]
-    IKDC_pre: Optional[float]
-    IKDC_3_m: Optional[float]
-    IKDC_6_m: Optional[float]
-    IKDC_1_Y: Optional[float]
-    IKDC_2_Y: Optional[float]
-    Lysholm_pre: Optional[float]
-    Lysholm_3_m: Optional[float]
-    Lysholm_6_m: Optional[float]
-    Lysholm_1_Y: Optional[float]
-    Lysholm_2_Y: Optional[float]
-    Pre_KL_grade: Optional[float]
-    Post_KL_grade_2_Y: Optional[float]
-    MM_extrusion_pre: Optional[float]
-    MM_extrusion_post: Optional[float]
-    MM_gap: Optional[float]
-    Degenerative_meniscus: Optional[float]
-    medial_femoral_condyle: Optional[float]
-    medial_tibial_condyle: Optional[float]
-    lateral_femoral_condyle: Optional[float]
-    lateral_tibial_condyle: Optional[float]
-
-    class Config:
-        from_attributes = True
-
-
-# class CSVFileResponse(BaseModel):
-#     id: int
-#     last_modified_time: datetime
-#     model_architecture: Optional[str]
-#     data: Optional[List[DataEntry]]
-#     message: Optional[str]
-
-#     class Config:
-#         from_attributes = True
 
 
 class DataEntry(BaseModel):

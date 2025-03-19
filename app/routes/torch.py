@@ -94,9 +94,7 @@ async def predict(
     user: User = Depends(get_current_user),
 ):
     # Extract data from the request
-    model_tag = prediction_request.model_tag
     input_data = prediction_request.input_data.dict()
-    # input_data = convert_csv_row_ten_types(input_data.values)
 
     # Retrieve model metadata from the database
     model = (
@@ -152,76 +150,3 @@ async def predict(
 
 
 COOKIE_NAME = os.getenv("COOKIE_NAME")
-
-
-# @router.post("/{model_name}")
-# async def predict(
-#     model_name: str,
-#     prediction_request: PredictionRequest,
-#     request: Request,
-#     db: Session = Depends(get_db),
-#     current_user: User = Depends(get_current_user),  # Use your existing dependency
-# ):
-#     # Verify active user status (already handled in get_current_user)
-
-#     # Prepare headers for BentoML
-#     headers = {
-#         "Cookie": f"{COOKIE_NAME}={request.cookies.get(COOKIE_NAME)}",
-#         "X-CSRF-Token": request.cookies.get("csrf_token", ""),
-#     }
-#     model_tag = prediction_request.model_tag
-#     input_data = prediction_request.input_data
-#     # input_data = convert_csv_row_ten_types(input_data.values)
-
-#     # Retrieve model metadata from the database
-#     model = (
-#         db.query(Model)
-#         .filter(Model.name == model_name, Model.is_active == True)
-#         .first()
-#     )
-
-#     try:
-#         async with httpx.AsyncClient() as client:
-#             response = await client.post(
-#                 BENTOML_URL,
-#                 json={
-#                     "payload": {
-#                         "model_tag": model.bentoml_tag,
-#                         "input_data": {
-#                             "sex": input_data["sex"],
-#                             "age": input_data["age"],
-#                             "side": input_data["side"],
-#                             "BW": input_data["BW"],
-#                             "Ht": input_data["Ht"],
-#                             "BMI": input_data["BMI"],
-#                             "IKDC pre": input_data["IKDC_pre"],
-#                             "Lysholm pre": input_data["Lysholm_pre"],
-#                             "Pre KL grade": input_data["Pre_KL_grade"],
-#                             "MM extrusion pre": input_data["MM_extrusion_pre"],
-#                             "MM gap": input_data["MM_gap"],
-#                             "Degenerative meniscus": input_data[
-#                                 "Degenerative_meniscus"
-#                             ],
-#                             "medial femoral condyle": input_data[
-#                                 "medial_femoral_condyle"
-#                             ],
-#                             "medial tibial condyle": input_data[
-#                                 "medial_tibial_condyle"
-#                             ],
-#                             "lateral femoral condyle": input_data[
-#                                 "lateral_femoral_condyle"
-#                             ],
-#                             "lateral tibial condyle": input_data[
-#                                 "lateral_tibial_condyle"
-#                             ],
-#                         },
-#                     },
-#                     "YOUR_SECURE_TOKEN": "string",
-#                 },
-#                 timeout=30,
-#             )
-#         response.raise_for_status()
-#         return response.json()
-
-#     except httpx.RequestError as e:
-#         raise HTTPException(status_code=502, detail="Prediction service unavailable")
