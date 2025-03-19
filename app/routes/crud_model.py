@@ -5,7 +5,6 @@ from sqlalchemy.orm import Session
 from app.schemas.schemas import AllModelResponse, AllModelUpdate, UserSchema
 from app.database.session import get_db
 from app.models.schema import Model
-import bentoml
 from jose import jwt
 from app.routes.auth2 import get_current_user, protected_route
 from loguru import logger

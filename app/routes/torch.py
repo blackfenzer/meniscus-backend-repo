@@ -5,11 +5,7 @@ from app.database.session import get_db
 from app.routes.auth2 import get_token, protected_route, get_current_user
 from sqlalchemy.orm import Session
 from fastapi import APIRouter, UploadFile, File, Depends, HTTPException
-from io import BytesIO
-import torch
-import bentoml
 from app.models.schema import Model, User
-from app.core.regression_net import RegressionNet
 from app.schemas.schemas import PredictRequest
 from jose import jwt
 from fastapi import APIRouter, HTTPException, Depends
@@ -26,64 +22,64 @@ class PredictionRequest(BaseModel):
     input_data: PredictRequest
 
 
-@router.post("/upload")
-async def upload_model(
-    name: str,
-    version: str,
-    description: str,
-    file: UploadFile = File(...),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(protected_route),
-):
-    # Authentication check here (add your logic)
-    # if (current_user.role != "user"):
-    #     raise HTTPException(status_code=403, detail="User unauthorized")
+# @router.post("/upload")
+# async def upload_model(
+#     name: str,
+#     version: str,
+#     description: str,
+#     file: UploadFile = File(...),
+#     db: Session = Depends(get_db),
+#     current_user: User = Depends(protected_route),
+# ):
+#     # Authentication check here (add your logic)
+#     # if (current_user.role != "user"):
+#     #     raise HTTPException(status_code=403, detail="User unauthorized")
 
-    # Load and verify model
-    try:
-        content = await file.read()
-        checkpoint = torch.load(
-            BytesIO(content), map_location="cpu", weights_only=False
-        )
+#     # Load and verify model
+#     try:
+#         content = await file.read()
+#         checkpoint = torch.load(
+#             BytesIO(content), map_location="cpu", weights_only=False
+#         )
 
-        # Initialize model with your architecture
-        model = RegressionNet(input_dim=10, hidden_dim=151, num_layers=2, dropout=0.15)
-        model.load_state_dict(checkpoint["model_state_dict"])
-        model.eval()
-        scripted_model = torch.jit.script(model)
-        # Save to BentoML model store
-        bento_model = bentoml.torchscript.save_model(
-            name,
-            scripted_model,
-            custom_objects={
-                "scaler": checkpoint["scaler"],
-                "config": {
-                    "input_dim": 10,
-                    "hidden_dim": 151,
-                    "num_layers": 2,
-                    "dropout": 0.15,
-                },
-            },
-            labels={"version": version, "description": description},
-        )
+#         # Initialize model with your architecture
+#         model = RegressionNet(input_dim=10, hidden_dim=151, num_layers=2, dropout=0.15)
+#         model.load_state_dict(checkpoint["model_state_dict"])
+#         model.eval()
+#         scripted_model = torch.jit.script(model)
+#         # Save to BentoML model store
+#         bento_model = bentoml.torchscript.save_model(
+#             name,
+#             scripted_model,
+#             custom_objects={
+#                 "scaler": checkpoint["scaler"],
+#                 "config": {
+#                     "input_dim": 10,
+#                     "hidden_dim": 151,
+#                     "num_layers": 2,
+#                     "dropout": 0.15,
+#                 },
+#             },
+#             labels={"version": version, "description": description},
+#         )
 
-        # Store in database
-        db_model = Model(
-            name=name,
-            model_architecture="RegressionNet",
-            model_path=file.filename,
-            # model_data=content,
-            bentoml_tag=str(bento_model.tag),
-            is_active=True,
-        )
-        db.add(db_model)
-        db.commit()
+#         # Store in database
+#         db_model = Model(
+#             name=name,
+#             model_architecture="RegressionNet",
+#             model_path=file.filename,
+#             # model_data=content,
+#             bentoml_tag=str(bento_model.tag),
+#             is_active=True,
+#         )
+#         db.add(db_model)
+#         db.commit()
 
-        return {"status": "success", "bentoml_tag": str(bento_model.tag)}
+#         return {"status": "success", "bentoml_tag": str(bento_model.tag)}
 
-    except Exception as e:
-        logger.error(f"Internal error: {str(e)}")
-        raise HTTPException(500, f"Model upload failed: {str(e)}")
+#     except Exception as e:
+#         logger.error(f"Internal error: {str(e)}")
+#         raise HTTPException(500, f"Model upload failed: {str(e)}")
 
 
 SECRET_KEY = os.getenv("SECRET_KEY")  # Store this securely, ideally in environment variables

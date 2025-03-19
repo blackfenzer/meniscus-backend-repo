@@ -2,32 +2,16 @@ import base64
 import os
 from fastapi.responses import StreamingResponse
 import httpx
-import torch
-import bentoml
 from fastapi import APIRouter, Depends, UploadFile, File, HTTPException, Request
-from typing import Dict, List
 from app.models.schema import User
 
 from sqlalchemy.orm import Session
-from app.schemas.schemas import (
-    PredictRequest,
-    CSVFileResponse,
-    CSVFileListResponse,
-    CSVFileBase,
-)
-from app.handlers.validate_handler import (
-    validate_train_request_csv,
-    validate_predict_request,
-)
 from app.handlers.clean_handler import clean_train_request_csv
 from app.database.session import get_db
 from app.models.schema import CSVFile, CSVData, Model
-from app.core.regression_net import RegressionNet
-from io import BytesIO, StringIO
+from io import StringIO
 import csv
-from app.handlers.model_trainer import (
-    train_with_best_params,
-)
+
 from jose import JWTError, jwt
 import numpy as np
 from loguru import logger

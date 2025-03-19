@@ -1,6 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.security import HTTPBearer
-from app.security.jwt_handler import validate_nextauth_jwt
 from app.security.csrf_handler import CsrfProtect
 from typing import Annotated
 import os
