@@ -165,9 +165,11 @@ class DynamicRegressionService:
 
                     # Replace feature importance with SHAP values
                     shap_values = self.get_shap_values(model, scaler, features)
+                    logger.info("SHAP values shape", shape=np.shape(shap_values), values=shap_values)
 
                     prediction = prediction.cpu().numpy().tolist()
                     logger.info("Prediction completed", prediction=prediction)
+                    logger.info("Feature importance", features = shap_values)
                     return {
                         "prediction": prediction,
                         "feature_importance": shap_values,
@@ -422,7 +424,9 @@ class DynamicRegressionService:
             def f(x):
                 with torch.no_grad():
                     tensor_x = torch.tensor(x, dtype=torch.float32)
-                    return model(tensor_x).cpu().numpy()
+                    output = model(tensor_x).cpu().numpy()
+                    logger.info(output)
+                    return np.atleast_1d(output)
 
             # Create a background dataset for SHAP
             # This is typically a sample from your training data
