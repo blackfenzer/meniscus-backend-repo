@@ -13,7 +13,7 @@ SECRET_KEY = os.getenv("SECRET_KEY") # Store this securely, ideally in environme
 ALGORITHM = os.getenv("ALGORITHM")
 router = APIRouter()
 HOST = os.getenv("BENTOML_HOST")
-BENTOML_URL = os.getenv(f"{HOST}/delete_model", "http://localhost:5010/delete_model")
+BENTOML_URL = f"{HOST}delete_model"
 
 
 @router.get("/", response_model=list[AllModelResponse])
@@ -95,7 +95,7 @@ async def delete_model(
     try:
         async with httpx.AsyncClient() as client:
             response = await client.post(
-                BENTOML_URL,
+                f"{BENTOML_URL}",
                 json={
                     "payload": {
                         "model_tag": db_model.bentoml_tag,

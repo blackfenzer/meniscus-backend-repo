@@ -13,7 +13,7 @@ from dotenv import load_dotenv
 import shap
 from jose import jwt
 from jose.exceptions import JWTError, ExpiredSignatureError
-from train_handler import train_pipeline_regression
+from train_handler import train_pipeline_regression, train_xg_boost
 
 load_dotenv()
 
@@ -340,6 +340,63 @@ class DynamicRegressionService:
             "rmse": rmse,
             "r2": r2,
         }
+    
+    @bentoml.api
+    async def train_model_xg_boost(self, payload: TrainModelInput):
+        # Verify token
+        token_payload = self.verify_token(payload.secure_token)
+        if not token_payload:
+            logger.warning("Authentication failed - invalid token")
+            return {"error": "Authentication failed"}, 401
+
+        # Decode the CSV bytes
+        try:
+            csv_bytes = base64.b64decode(payload.csv_bytes)
+        except Exception as e:
+            logger.error(f"CSV decoding error: {str(e)}")
+            return {"error": f"Failed to decode CSV bytes: {str(e)}"}, 400
+
+        try:
+            # Call your training pipeline (this function should match your training logic)
+            (
+                model,
+                train_losses,
+                val_losses,
+                test_metrics,
+                predictions,
+                targets,
+                scaler,
+                input_dim,
+            ) = train_xg_boost(
+                csv_bytes,
+                payload.model_params,
+                payload.optimizer_params,
+                payload.batch_size,
+                payload.epochs,
+            )
+            rmse = test_metrics["rmse"]
+            r2 = test_metrics["r2"]
+        except Exception as e:
+            logger.error(f"Training failed: {str(e)}")
+            return {"error": f"Training failed: {str(e)}"}, 500
+
+        try:
+            # Convert model to TorchScript and save with BentoML
+            bento_model = bentoml.xgboost.save_model(
+                payload.name,
+                model,
+                labels={"version": payload.version, "description": payload.description},
+            )
+        except Exception as e:
+            logger.error(f"Model saving failed: {str(e)}")
+            return {"error": f"Model saving failed: {str(e)}"}, 500
+        logger.success("Model training and saving successful")
+        return {
+            "status": "success",
+            "bentoml_tag": str(bento_model.tag),
+            "rmse": rmse,
+            "r2": r2,
+        }
 
     def extract_features2(self, input_data: PredictData) -> List[float]:
         """
@@ -425,7 +482,6 @@ class DynamicRegressionService:
                 with torch.no_grad():
                     tensor_x = torch.tensor(x, dtype=torch.float32)
                     output = model(tensor_x).cpu().numpy()
-                    logger.info(output)
                     return np.atleast_1d(output)
 
             # Create a background dataset for SHAP

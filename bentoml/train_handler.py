@@ -1,14 +1,17 @@
 from io import BytesIO
+import joblib
+from loguru import logger
 import numpy as np
 import pandas as pd
 import torch
 import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader, Subset
-from sklearn.model_selection import train_test_split, StratifiedKFold
+from sklearn.model_selection import GridSearchCV, KFold, train_test_split, StratifiedKFold
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 import random
 import smogn
+import xgboost as xgb
 
 SEED = 7
 random.seed(SEED)
@@ -516,6 +519,114 @@ def train_pipeline_regression(
         final_model,
         train_losses,
         val_losses,
+        final_metrics,
+        predictions,
+        targets,
+        scaler,
+        input_dim,
+    )
+
+##################################
+# Train using XG boost           #
+##################################
+
+def train_xg_boost(
+    csv_bytes: bytes,
+    param_grid: dict = None,
+    batch_size: int = 32,
+    test_size: float = 0.2,
+    seed: int = 9,
+):
+    np.random.seed(seed)
+    
+    TARGET_COLUMN = "IKDC 2 Y"
+    DROP_COLUMNS = [
+        "Lysholm 2 Y", "Post KL grade 2 Y", "IKDC 3 m", "IKDC 6 m",
+        "IKDC 1 Y", "Lysholm 3 m", "Lysholm 6 m", "Lysholm 1 Y",
+        "MRI healing 1 Y", "MM extrusion post", "BMI", "lateral tibial condyle"
+    ]
+    
+    # Load CSV data
+    csv_data = BytesIO(csv_bytes)
+    df = pd.read_csv(csv_data)
+    df = df.drop(columns=DROP_COLUMNS).dropna()
+    
+    # Split features and target
+    X = df.drop(columns=[TARGET_COLUMN]).values
+    y = df[TARGET_COLUMN].values
+    input_dim = X.shape[1]
+    
+    # Split the data into training and test sets
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.20, random_state=seed
+    )
+    
+    # Scale the features
+    scaler = StandardScaler()
+    X_train_scaled = scaler.fit_transform(X_train)
+    X_test_scaled = scaler.transform(X_test)
+    
+    # Define default hyperparameter grid if none is provided
+    param_grid = {
+        'n_estimators': [200], #[50, 200],
+        'max_depth': [3], #[3, 7, 9],
+        'learning_rate': [0.01], #[0.01, 0.001],
+        'subsample': [0.5],
+        'colsample_bytree': [1.0], #[0.9, 1.0],
+        'gamma': [1],
+        'min_child_weight': [5], #[5, 7]
+    }
+    
+    # Define the XGBoost regressor
+    xgb_reg = xgb.XGBRegressor(objective='reg:squarederror', random_state=seed)
+    
+    # Setup KFold cross-validation
+    kf = KFold(n_splits=5, shuffle=True, random_state=seed)
+    
+    # Perform GridSearchCV
+    grid_search = GridSearchCV(
+        estimator=xgb_reg,
+        param_grid=param_grid,
+        scoring='neg_mean_absolute_error',
+        cv=kf,
+        verbose=1,
+        n_jobs=-1
+    )
+    
+    grid_search.fit(X_train_scaled, y_train)
+    best_model = grid_search.best_estimator_
+    
+    # Re-fit best_model with an evaluation set to capture loss history.
+    # We use MAE as the evaluation metric (you can choose another if you prefer)
+    best_model.fit(
+        X_train_scaled, y_train
+    )
+    
+    # Predict on test data
+    y_pred = best_model.predict(X_test_scaled)
+    
+    # Evaluate performance
+    mse = mean_squared_error(y_test, y_pred)
+    rmse = np.sqrt(mse)
+    mae = mean_absolute_error(y_test, y_pred)
+    r2 = r2_score(y_test, y_pred)
+    
+    final_metrics = {
+        "mse": mse,
+        "rmse": rmse,
+        "mae": mae,
+        "r2": r2
+    }
+    
+    final_model = best_model
+    predictions = y_pred
+    targets = y_test
+    
+    logger.info("return")
+    return (
+        final_model,
+        0,
+        0,
         final_metrics,
         predictions,
         targets,
