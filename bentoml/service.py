@@ -1,6 +1,7 @@
 import base64
 import bentoml
 import numpy as np
+import pandas as pd
 from pydantic import BaseModel
 import torch
 from typing import Any, Dict, List
@@ -13,6 +14,7 @@ from dotenv import load_dotenv
 import shap
 from jose import jwt
 from jose.exceptions import JWTError, ExpiredSignatureError
+import xgboost
 from train_handler import train_pipeline_regression, train_xg_boost
 
 load_dotenv()
@@ -57,6 +59,23 @@ else:
     )
 
 model_cache = {}
+
+feature_names = [
+                    "sex",
+                    "age",
+                    "side",
+                    "BW",
+                    "Ht",
+                    "IKDC_pre",
+                    "Lysholm_pre",
+                    "Pre_KL_grade",
+                    "MM_extrusion_pre",
+                    "MM_gap",
+                    "Degenerative_meniscus",
+                    "medial_femoral_condyle",
+                    "medial_tibial_condyle",
+                    "lateral_femoral_condyle",
+                ]
 
 
 # Define Pydantic models for prediction input
@@ -168,6 +187,71 @@ class DynamicRegressionService:
                     logger.info("SHAP values shape", shape=np.shape(shap_values), values=shap_values)
 
                     prediction = prediction.cpu().numpy().tolist()
+                    logger.info("Prediction completed", prediction=prediction)
+                    logger.info("Feature importance", features = shap_values)
+                    return {
+                        "prediction": prediction,
+                        "feature_importance": shap_values,
+                    }, 200
+
+                except Exception as e:
+                    logger.error("Prediction failed", error=str(e))
+                    return {"error": f"Prediction failed: {str(e)}"}, 500
+
+            except Exception as e:
+                logger.critical("Unexpected error in prediction", error=str(e))
+                return {"error": "Internal server error"}, 500
+            
+    @bentoml.api
+    async def predictxg(
+        self,
+        payload: PredictInput,
+    ):
+        request_id = str(uuid.uuid4())
+        with logger.contextualize(request_id=request_id):
+            try:
+                logger.info("Prediction request received")
+                model_tag = payload.model_tag
+                input_data = payload.input_data
+                print("thsi is", payload.secure_token)
+                # Verify JWT token
+                token_payload = self.verify_token(payload.secure_token)
+
+                if not token_payload:
+                    logger.warning("Authentication failed - invalid token")
+                    return {"error": "Authentication failed"}, 401
+
+                logger.info("Authentication successful", role=token_payload.get("role"))
+
+                # Load model and scaler from cache if available
+                if model_tag not in model_cache:
+                    try:
+                        model = bentoml.xgboost.load_model(model_tag)
+                        # Access custom objects
+                        bento_model = bentoml.models.get(model_tag)
+                        scaler = bento_model.custom_objects["scaler"]
+                        logger.info("Model and scaler loaded")
+                        model_cache[model_tag] = (model, scaler)
+                    except Exception as e:
+                        return {"error": f"Model loading failed: {str(e)}"}, 500
+
+                model, scaler = model_cache[model_tag]
+                
+                try:
+                    # Extract numeric features in the correct order
+                    features = self.extract_features3(input_data)
+                    # Convert features to a 2D numpy array
+                    transformed = scaler.transform(features)
+                    # Prepare the data as an XGBoost DMatrix
+                    dmatrix = xgboost.DMatrix(transformed)
+                    # Run the prediction
+                    prediction = model.predict(dmatrix)
+
+                    # Replace feature importance with SHAP values
+                    shap_values = self.get_shap_values_xg(model, scaler, features)
+                    logger.info("SHAP values shape", shape=np.shape(shap_values), values=shap_values)
+
+                    prediction = prediction.tolist()
                     logger.info("Prediction completed", prediction=prediction)
                     logger.info("Feature importance", features = shap_values)
                     return {
@@ -385,6 +469,9 @@ class DynamicRegressionService:
             bento_model = bentoml.xgboost.save_model(
                 payload.name,
                 model,
+                custom_objects={
+                    "scaler": scaler,
+                },
                 labels={"version": payload.version, "description": payload.description},
             )
         except Exception as e:
@@ -426,6 +513,37 @@ class DynamicRegressionService:
             logger.error("Missing feature in input data", missing_feature=str(e))
             raise e
         return features
+    
+    def extract_features3(self, input_data: PredictData) -> pd.DataFrame:
+        """
+        Extracts numeric features in the exact order expected by the model.
+        The expected order should match the order used when training (and fitting the scaler).
+        """
+        expected_order = [
+            "sex",
+            "age",
+            "side",
+            "BW",
+            "Ht",
+            "IKDC_pre",
+            "Lysholm_pre",
+            "Pre_KL_grade",
+            "MM_extrusion_pre",
+            "MM_gap",
+            "Degenerative_meniscus",
+            "medial_femoral_condyle",
+            "medial_tibial_condyle",
+            "lateral_femoral_condyle",
+        ]
+        data_dict = input_data.dict()
+    
+        try:
+            features = {feature: [data_dict[feature]] for feature in expected_order}
+        except KeyError as e:
+            logger.error("Missing feature in input data", missing_feature=str(e))
+            raise e
+
+        return pd.DataFrame(features)
 
     def get_feature_importance(self, model, scaler, feature_names=None):
         try:
@@ -515,6 +633,12 @@ class DynamicRegressionService:
             logger.error(f"SHAP calculation failed: {str(e)}")
             # Fall back to a simpler method or return empty dict
             return {}
+        
+    def get_shap_values_xg(self, model, scaler, features):
+        transformed = scaler.transform([features])
+        explainer = shap.TreeExplainer(model)
+        shap_values = explainer.shap_values(transformed)
+        return shap_values.tolist() if hasattr(shap_values, "tolist") else shap_values
 
     def get_feature_names(self) -> List[str]:
 

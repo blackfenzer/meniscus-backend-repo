@@ -16,6 +16,7 @@ from loguru import logger
 router = APIRouter()
 HOST = os.getenv("BENTOML_HOST")
 BENTOML_URL = f"{HOST}predict"
+BENTOML_URL_XG = f"{HOST}predictxg"
 
 class PredictionRequest(BaseModel):
     model_tag: str
@@ -119,18 +120,33 @@ async def predict(
         logging.debug(f"Received input data: {input_data}")
 
         async with httpx.AsyncClient() as client:
-            response = await client.post(
-                BENTOML_URL,
-                json={
-                    "payload": {
-                        "model_tag": model.bentoml_tag,
-                        "input_data": input_data,
-                        "secure_token": secure_token,
+            if (model.model_architecture == "RegressionNet"):
+                response = await client.post(
+                    BENTOML_URL,
+                    json={
+                        "payload": {
+                            "model_tag": model.bentoml_tag,
+                            "input_data": input_data,
+                            "secure_token": secure_token,
+                        },
+                        "headers": {"Authorization": f"Bearer {get_token}"},
                     },
-                    "headers": {"Authorization": f"Bearer {get_token}"},
-                },
-                timeout=30,
-            )
+                    timeout=30,
+                )
+            else:
+                logger.info("enter")
+                response = await client.post(
+                    BENTOML_URL_XG,
+                    json={
+                        "payload": {
+                            "model_tag": model.bentoml_tag,
+                            "input_data": input_data,
+                            "secure_token": secure_token,
+                        },
+                        "headers": {"Authorization": f"Bearer {get_token}"},
+                    },
+                    timeout=30,
+                )
         response.raise_for_status()
         return response.json()
 
