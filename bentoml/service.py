@@ -242,13 +242,14 @@ class DynamicRegressionService:
                     features = self.extract_features3(input_data)
                     # Convert features to a 2D numpy array
                     transformed = scaler.transform(features)
-                    # Prepare the data as an XGBoost DMatrix
-                    dmatrix = xgboost.DMatrix(transformed)
+                    logger.info(transformed)
                     # Run the prediction
-                    prediction = model.predict(dmatrix)
+                    prediction = model.get_booster().predict(xgboost.DMatrix(np.float32(transformed)))
+                    logger.info(prediction)
 
                     # Replace feature importance with SHAP values
                     shap_values = self.get_shap_values_xg(model, scaler, features)
+                    logger.info(shap_values)
                     logger.info("SHAP values shape", shape=np.shape(shap_values), values=shap_values)
 
                     prediction = prediction.tolist()
@@ -256,7 +257,7 @@ class DynamicRegressionService:
                     logger.info("Feature importance", features = shap_values)
                     return {
                         "prediction": prediction,
-                        "feature_importance": shap_values,
+                        "feature_importance": shap_values[0],
                     }, 200
 
                 except Exception as e:
@@ -635,7 +636,7 @@ class DynamicRegressionService:
             return {}
         
     def get_shap_values_xg(self, model, scaler, features):
-        transformed = scaler.transform([features])
+        transformed = scaler.transform(features)
         explainer = shap.TreeExplainer(model)
         shap_values = explainer.shap_values(transformed)
         return shap_values.tolist() if hasattr(shap_values, "tolist") else shap_values
