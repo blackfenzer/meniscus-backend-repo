@@ -213,21 +213,19 @@ class DynamicRegressionService:
                 logger.info("Prediction request received")
                 model_tag = payload.model_tag
                 input_data = payload.input_data
-                print("thsi is", payload.secure_token)
+
                 # Verify JWT token
                 token_payload = self.verify_token(payload.secure_token)
-
                 if not token_payload:
                     logger.warning("Authentication failed - invalid token")
                     return {"error": "Authentication failed"}, 401
 
                 logger.info("Authentication successful", role=token_payload.get("role"))
 
-                # Load model and scaler from cache if available
+                # Load model and scaler from cache
                 if model_tag not in model_cache:
                     try:
                         model = bentoml.xgboost.load_model(model_tag)
-                        # Access custom objects
                         bento_model = bentoml.models.get(model_tag)
                         scaler = bento_model.custom_objects["scaler"]
                         logger.info("Model and scaler loaded")
@@ -238,30 +236,28 @@ class DynamicRegressionService:
                 model, scaler = model_cache[model_tag]
                 
                 try:
-                    # Extract numeric features in the correct order
-                    features = self.extract_features3(input_data)
-                    # Convert features to a 2D numpy array
-                    transformed = scaler.transform(features)
-                    logger.info(transformed)
-                    # Run the prediction
-                    prediction = model.get_booster().predict(xgboost.DMatrix(np.float32(transformed)))
-                    logger.info(prediction)
-
-                    # Replace feature importance with SHAP values
-                    shap_values = self.get_shap_values_xg(model, scaler, features)
-                    shap_values = shap_values[0]
-                    feature_names = self.get_feature_names()
-                    shap_values = {feature_names[i]: float(shap_values[i]) for i in range(len(feature_names))}
-                    logger.info(shap_values)
-                    logger.info("SHAP values shape", shape=np.shape(shap_values), values=shap_values)
-
-                    prediction = prediction.tolist()
-                    logger.info("Prediction completed", prediction=prediction)
-                    logger.info("Feature importance", features = shap_values)
+                    # Extract features as DataFrame and convert to array for scaling
+                    features_df = self.extract_features3(input_data)
+                    features_array = features_df.to_numpy()  # Convert to numpy array
                     
+                    # Scale features
+                    transformed = scaler.transform(features_array)  # Now passing an array
+                    logger.info("Scaled features", transformed=transformed.tolist())
+
+                    # Make prediction
+                    prediction = model.get_booster().predict(xgboost.DMatrix(np.float32(transformed)))
+                    logger.info("Raw prediction", prediction=prediction)
+
+                    # Calculate SHAP values using original DataFrame for feature names
+                    shap_values = self.get_shap_values_xg(model, scaler, features_df)
+                    shap_values = shap_values[0]
+                    feature_names = self.get_feature_names()  # Ensure this matches DataFrame columns
+                    shap_dict = {feature_names[i]: float(shap_values[i]) for i in range(len(feature_names))}
+                    logger.info("SHAP values", values=shap_dict)
+
                     return {
-                        "prediction": prediction,
-                        "feature_importance": shap_values[0],
+                        "prediction": prediction.tolist(),
+                        "feature_importance": shap_dict,  # Use the correct SHAP dictionary
                     }, 200
 
                 except Exception as e:
@@ -269,7 +265,7 @@ class DynamicRegressionService:
                     return {"error": f"Prediction failed: {str(e)}"}, 500
 
             except Exception as e:
-                logger.critical("Unexpected error in prediction", error=str(e))
+                logger.critical("Unexpected error", error=str(e))
                 return {"error": "Internal server error"}, 500
 
     @bentoml.api
