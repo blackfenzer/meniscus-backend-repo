@@ -249,12 +249,16 @@ class DynamicRegressionService:
 
                     # Replace feature importance with SHAP values
                     shap_values = self.get_shap_values_xg(model, scaler, features)
+                    shap_values = shap_values[0]
+                    feature_names = self.get_feature_names()
+                    shap_values = {feature_names[i]: float(shap_values[i]) for i in range(len(feature_names))}
                     logger.info(shap_values)
                     logger.info("SHAP values shape", shape=np.shape(shap_values), values=shap_values)
 
                     prediction = prediction.tolist()
                     logger.info("Prediction completed", prediction=prediction)
                     logger.info("Feature importance", features = shap_values)
+                    
                     return {
                         "prediction": prediction,
                         "feature_importance": shap_values[0],
