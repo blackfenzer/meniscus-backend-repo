@@ -1,6 +1,7 @@
 import pandas as pd
 import io
 
+# clean now taantan work c ww
 def clean_train_request_csv(csv_content: str) -> str:
     try:
         df = pd.read_csv(io.StringIO(csv_content))

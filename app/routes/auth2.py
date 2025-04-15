@@ -175,8 +175,8 @@ async def login(
         COOKIE_NAME,
         access_token,
         httponly=True,  # Make cookie HTTP-only
-        secure=True,  # Only send over HTTPS
-        samesite="lax",  # Protect against CSRF
+        secure=False,  # Only send over HTTPS
+        samesite="none",  # Protect against CSRF
         max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,  # Convert to seconds
     )
 
@@ -185,8 +185,8 @@ async def login(
         "csrf_token",
         csrf_token,
         httponly=False,
-        secure=True,
-        samesite="lax",
+        secure=False,
+        samesite="none",
         max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
     )
 
