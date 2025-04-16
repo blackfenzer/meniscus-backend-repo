@@ -178,6 +178,7 @@ async def login(
         secure=True,  # Only send over HTTPS
         samesite="none",  # Protect against CSRF
         max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,  # Convert to seconds
+        domain=".onrender.com",
     )
 
     # Set CSRF token cookie (not HTTP-only so JavaScript can read it)
@@ -188,6 +189,7 @@ async def login(
         secure=True,
         samesite="none",
         max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        domain=".onrender.com",
     )
 
     return {
