@@ -43,7 +43,8 @@ app.add_middleware(
         "http://nextjs:3010",
         "http://localhost:8000",
         "http://fastapi:8000",
-        "http://34.226.203.199"
+        "http://34.226.203.199",
+        "https://meniscus-frontend-repo.onrender.com",
     ],  # Allow Next.js frontend
     allow_credentials=True,
     allow_methods=["*"],
@@ -152,7 +153,9 @@ async def logging_middleware(request: Request, call_next):
 # Include Routes
 app.include_router(auth2.router, prefix="/api/v1", tags=["auth2"])
 app.include_router(validate.router, prefix="/api/v1", tags=["validate"])
-app.include_router(validate_xgboost.router, prefix="/api/v1", tags=["validate_xg_boost"])
+app.include_router(
+    validate_xgboost.router, prefix="/api/v1", tags=["validate_xg_boost"]
+)
 app.include_router(torch.router, prefix="/api/v1/nn", tags={"test"})
 app.include_router(crud_CSVfile.router, prefix="/api/v1/csv_files", tags=["CSV file"])
 app.include_router(crud_model.router, prefix="/api/v1/model", tags=["model"])
